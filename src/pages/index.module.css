@@ -1,0 +1,78 @@
+.hero {
+  padding: 7rem 0 6rem;
+  background:
+    radial-gradient(circle at 80% 20%, rgba(53, 208, 127, 0.16), transparent 30%),
+    linear-gradient(135deg, #071b2d 0%, #0b2b3e 100%);
+  color: white;
+}
+
+.badge {
+  display: inline-block;
+  margin-bottom: 1rem;
+  padding: .45rem .8rem;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 999px;
+  color: #9ce8bf;
+  font-size: .84rem;
+  letter-spacing: .08em;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(3.5rem, 9vw, 7rem);
+  line-height: .95;
+  letter-spacing: -.06em;
+}
+
+.subtitle {
+  max-width: 760px;
+  margin: 1.5rem 0 2rem;
+  color: #d6e2e9;
+  font-size: 1.2rem;
+  line-height: 1.75;
+}
+
+.actions {
+  display: flex;
+  gap: .8rem;
+  flex-wrap: wrap;
+}
+
+.gridSection {
+  padding: 4rem 0 5rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.card {
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 18px;
+  padding: 1.5rem;
+  background: var(--ifm-background-surface-color);
+}
+
+.card span {
+  color: var(--ifm-color-primary);
+  font-weight: 700;
+  font-size: .85rem;
+}
+
+.card h2 {
+  margin-top: .6rem;
+  margin-bottom: .5rem;
+}
+
+.card p {
+  margin: 0;
+  color: var(--ifm-color-emphasis-700);
+  line-height: 1.7;
+}
+
+@media (max-width: 760px) {
+  .hero { padding: 5rem 0 4rem; }
+  .grid { grid-template-columns: 1fr; }
+}
