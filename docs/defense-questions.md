@@ -109,10 +109,18 @@ It isolates backend behavior. We can verify the endpoint independently, then lat
 
 Our 400 was intentional business validation for duplicate email. The earlier 500 represented a server-side failure during password hashing.
 
+### How does your current login work?
+
+The login endpoint receives email and password through a dedicated Pydantic schema, queries the coach by email, and verifies the entered plain password against the stored bcrypt hash using `verify_password(...)`. Invalid credentials return `401 Unauthorized`. Valid credentials currently return safe coach data.
+
+### Why do you return the same message for a missing email and a wrong password?
+
+To avoid revealing whether a specific account exists. Both cases return `Invalid email or password`.
+
 ## Questions we should NOT pretend are finished yet
 
 If asked today about Login/JWT, be clear:
 
-> The signup and hashing foundation is implemented. Login, password verification, JWT generation, and protected endpoints are the next authentication milestone and are not yet completed.
+> Signup, hashing, login, and password verification are implemented and tested. JWT generation and protected endpoints are the next authentication milestone and are not yet completed.
 
 That answer is better than describing planned code as if it were already implemented.
