@@ -5,72 +5,336 @@ title: Database & Models
 
 # Database & Models
 
-## Database configuration
+This section explains the database layer exactly as we currently built it.
 
-Tactiki currently uses SQLite with SQLAlchemy.
+## 1. Database configuration
 
-The database file is:
-
-```text
-tactiki.db
-```
-
-The configuration lives in:
+File:
 
 ```text
 app/database.py
 ```
 
-Important pieces are:
+Current code with study comments:
 
-- `create_engine(...)` — creates the SQLAlchemy engine.
-- `sessionmaker(...)` — creates database sessions.
-- `declarative_base()` — creates the Base inherited by ORM models.
-- `get_db()` — provides a database session to FastAPI endpoints and closes it afterward.
+```python title="app/database.py"
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, declarative_base
 
-## Current ORM models
+# SQLite database file in the project root.
+DATABASE_URL = "sqlite:///./tactiki.db"
 
-### Coach
+# Engine = SQLAlchemy's connection interface to the database.
+engine = create_engine(
+    DATABASE_URL,
 
-Stores coach account information including full name, email, university, and password hash.
+    # SQLite-specific option needed for this FastAPI setup.
+    connect_args={"check_same_thread": False}
+)
 
-### Team
+# Factory used to create database sessions.
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine
+)
 
-Belongs to a coach through `coach_id`.
+# All ORM models inherit from this Base.
+Base = declarative_base()
 
-### Player
-
-Belongs to a team through `team_id`.
-
-Player attributes currently include:
-
-```text
-speed
-passing
-shooting
-defending
-stamina
-dribbling
+# FastAPI dependency that gives an endpoint a DB session.
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        # Always close the session when the request is finished.
+        db.close()
 ```
 
-The model also includes player identity, position, active status, height, weight, and an optional overall score.
+## 2. What is a database session?
 
-### PlayerProgress
+A SQLAlchemy `Session` is the object we use to talk to the database during a request.
 
-Stores score changes and progress status over time.
+Example operations:
 
-### Lineup
+```python
+db.query(Coach)
+db.add(new_coach)
+db.commit()
+db.refresh(new_coach)
+```
 
-Stores a formation for a team.
+### Why does `get_db()` use `yield`?
 
-### LineupPlayer
+`yield` gives the session to the endpoint.
 
-Associates a player with a lineup and stores the player's assigned position.
+After the endpoint finishes, execution continues into `finally`, which closes the session.
 
-## Relationships
+:::tip تذكري
+`get_db()` = افتح Session للـrequest → استخدمها → اقفلها مهما كانت النتيجة.
+:::
 
-We use both foreign keys and SQLAlchemy `relationship(...)`.
+## 3. Creating tables
 
-A foreign key expresses the database-level link. `relationship(...)` gives us a convenient object-oriented way to navigate related ORM objects.
+In `main.py` we import the models, then call:
 
-When both model sides use `back_populates`, SQLAlchemy knows that they represent the two directions of the same relationship.
+```python
+Base.metadata.create_all(bind=engine)
+```
+
+Important detail: SQLAlchemy must know about a model before it can create that model's table.
+
+That is why our `main.py` imports the model classes before `create_all`.
+
+## 4. Coach model
+
+```python title="app/models/coach.py"
+from sqlalchemy import Column, Integer, String
+from sqlalchemy.orm import relationship
+from app.database import Base
+
+class Coach(Base):
+    __tablename__ = "coaches"
+
+    coach_id = Column(Integer, primary_key=True, index=True)
+    full_name = Column(String, nullable=False)
+    email = Column(String, unique=True, nullable=False, index=True)
+    university = Column(String, nullable=False)
+    password_hash = Column(String, nullable=False)
+
+    teams = relationship("Team", back_populates="coach")
+```
+
+Important fields:
+
+- `primary_key=True` → unique row identifier.
+- `unique=True` on email → database-level uniqueness.
+- `nullable=False` → value is required.
+- `index=True` → creates an index useful for lookups.
+- `password_hash` → we do **not** store the plain password.
+
+## 5. Team model
+
+```python title="app/models/team.py"
+from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy.orm import relationship
+from app.database import Base
+
+class Team(Base):
+    __tablename__ = "teams"
+
+    team_id = Column(Integer, primary_key=True, index=True)
+    coach_id = Column(Integer, ForeignKey("coaches.coach_id"), nullable=False)
+    team_name = Column(String, nullable=False)
+    university = Column(String, nullable=False)
+
+    coach = relationship("Coach", back_populates="teams")
+    players = relationship("Player", back_populates="team")
+    lineups = relationship("Lineup", back_populates="team")
+```
+
+The key relationship is:
+
+```text
+Coach 1 ───── many Team
+```
+
+The foreign key lives in `Team`:
+
+```python
+coach_id = Column(Integer, ForeignKey("coaches.coach_id"), nullable=False)
+```
+
+## 6. Player model
+
+```python title="app/models/player.py"
+from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey
+from sqlalchemy.orm import relationship
+from app.database import Base
+
+class Player(Base):
+    __tablename__ = "players"
+
+    player_id = Column(Integer, primary_key=True, index=True)
+    team_id = Column(Integer, ForeignKey("teams.team_id"), nullable=False)
+
+    player_name = Column(String, nullable=False)
+    position = Column(String, nullable=False)
+    is_active = Column(Boolean, default=True)
+    height = Column(Float, nullable=True)
+    weight = Column(Float, nullable=True)
+
+    speed = Column(Float, nullable=False)
+    passing = Column(Float, nullable=False)
+    shooting = Column(Float, nullable=False)
+    defending = Column(Float, nullable=False)
+    stamina = Column(Float, nullable=False)
+    dribbling = Column(Float, nullable=False)
+
+    overall_score = Column(Float, nullable=True)
+
+    team = relationship("Team", back_populates="players")
+    progress_records = relationship(
+        "PlayerProgress",
+        back_populates="player"
+    )
+    lineup_entries = relationship(
+        "LineupPlayer",
+        back_populates="player"
+    )
+```
+
+The six football attributes currently used are:
+
+```text
+Speed
+Passing
+Shooting
+Defending
+Stamina
+Dribbling
+```
+
+:::note
+These attributes are important because later AI/recommendation features will use player data. The API endpoints for managing players are **not implemented yet**.
+:::
+
+## 7. PlayerProgress model
+
+```python title="app/models/player_progress.py"
+from sqlalchemy import Column, Integer, Float, String, DateTime, ForeignKey
+from sqlalchemy.orm import relationship
+from datetime import datetime
+from app.database import Base
+
+class PlayerProgress(Base):
+    __tablename__ = "player_progress"
+
+    progress_id = Column(Integer, primary_key=True, index=True)
+    player_id = Column(Integer, ForeignKey("players.player_id"), nullable=False)
+    previous_score = Column(Float, nullable=False)
+    current_score = Column(Float, nullable=False)
+    progress_status = Column(String, nullable=False)
+    last_update = Column(DateTime, default=datetime.utcnow)
+
+    player = relationship("Player", back_populates="progress_records")
+```
+
+Relationship:
+
+```text
+Player 1 ───── many PlayerProgress
+```
+
+## 8. Lineup model
+
+```python title="app/models/lineup.py"
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy.orm import relationship
+from datetime import datetime
+from app.database import Base
+
+class Lineup(Base):
+    __tablename__ = "lineups"
+
+    lineup_id = Column(Integer, primary_key=True, index=True)
+    team_id = Column(Integer, ForeignKey("teams.team_id"), nullable=False)
+    formation = Column(String, nullable=False)
+    create_date = Column(DateTime, default=datetime.utcnow)
+
+    team = relationship("Team", back_populates="lineups")
+    lineup_players = relationship(
+        "LineupPlayer",
+        back_populates="lineup"
+    )
+```
+
+## 9. LineupPlayer associative model
+
+```python title="app/models/lineup_player.py"
+from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy.orm import relationship
+from app.database import Base
+
+class LineupPlayer(Base):
+    __tablename__ = "lineup_players"
+
+    lineup_id = Column(
+        Integer,
+        ForeignKey("lineups.lineup_id"),
+        primary_key=True
+    )
+
+    player_id = Column(
+        Integer,
+        ForeignKey("players.player_id"),
+        primary_key=True
+    )
+
+    assigned_position = Column(String, nullable=False)
+
+    lineup = relationship(
+        "Lineup",
+        back_populates="lineup_players"
+    )
+
+    player = relationship(
+        "Player",
+        back_populates="lineup_entries"
+    )
+```
+
+### Why are both IDs primary keys?
+
+Together they form a **composite primary key**:
+
+```text
+(lineup_id, player_id)
+```
+
+This represents the association between a specific lineup and a specific player.
+
+It also allows `assigned_position` to belong to that particular lineup-player assignment.
+
+## 10. ForeignKey vs relationship
+
+This is a common defense question.
+
+### `ForeignKey`
+
+Database-level connection:
+
+```python
+team_id = Column(Integer, ForeignKey("teams.team_id"))
+```
+
+### `relationship`
+
+Python ORM convenience:
+
+```python
+team = relationship("Team", back_populates="players")
+```
+
+:::tip بالعربي
+`ForeignKey` يقول لقاعدة البيانات **مين مرتبط بمين**.  
+`relationship` يسهل علينا التعامل مع العلاقة كـPython objects.
+:::
+
+## Relationship map
+
+```text
+Coach
+  └── Team
+        ├── Player
+        │     ├── PlayerProgress
+        │     └── LineupPlayer
+        │
+        └── Lineup
+              └── LineupPlayer
+```
+
+## Database checkpoint
+
+At this point we created the data structure, but **CRUD endpoints for Team, Player, Progress, and Lineup are still upcoming**.

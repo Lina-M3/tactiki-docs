@@ -4,18 +4,43 @@ const sidebars = {
     'intro',
     {
       type: 'category',
-      label: 'Backend Foundation',
-      items: ['project-setup', 'project-structure', 'database-models'],
+      label: '1. Backend Foundation',
+      collapsed: false,
+      items: [
+        'project-setup',
+        'project-structure',
+        'database-models',
+      ],
     },
     {
       type: 'category',
-      label: 'Authentication',
-      items: ['authentication'],
+      label: '2. Authentication',
+      collapsed: false,
+      items: [
+        'authentication',
+        'request-flow',
+        'testing-swagger',
+      ],
     },
     {
       type: 'category',
-      label: 'Development Record',
-      items: ['errors-fixes', 'progress-log'],
+      label: '3. Quick Reference',
+      collapsed: false,
+      items: [
+        'commands-cheatsheet',
+        'errors-fixes',
+      ],
+    },
+    {
+      type: 'category',
+      label: '4. Project Notebook',
+      collapsed: false,
+      items: [
+        'docs-site',
+        'progress-log',
+        'defense-questions',
+        'next-steps',
+      ],
     },
   ],
 };
