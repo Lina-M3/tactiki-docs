@@ -128,3 +128,61 @@ For every new endpoint we add later, test at least:
 6. Database result.
 
 We will keep adding exact tests as endpoints are implemented.
+
+
+## Login test — verified
+
+Endpoint:
+
+```text
+POST /auth/login
+```
+
+Successful credentials used:
+
+```json
+{
+  "email": "lina@test.com",
+  "password": "Test1234"
+}
+```
+
+Observed result:
+
+```text
+200 OK
+```
+
+The response returned:
+
+```json
+{
+  "coach_id": 1,
+  "full_name": "Lina Test",
+  "email": "lina@test.com",
+  "university": "King Abdulaziz University"
+}
+```
+
+This confirms that:
+
+- the coach was found by email;
+- password verification succeeded;
+- `CoachResponse` filtered the response;
+- the stored password hash was not exposed.
+
+### Next negative test
+
+Use the same email with an intentionally wrong password. Expected:
+
+```text
+401 Unauthorized
+```
+
+with:
+
+```json
+{
+  "detail": "Invalid email or password"
+}
+```
