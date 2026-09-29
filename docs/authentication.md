@@ -14,8 +14,8 @@ Current state:
 ✅ Signup endpoint  
 ✅ Duplicate email check  
 ✅ Swagger test  
-⏭️ Login  
-⏭️ Password verification  
+✅ Login  
+✅ Password verification  
 ⏭️ JWT  
 ⏭️ Protected endpoints
 
@@ -318,15 +318,52 @@ After that, direct hashing worked.
 
 🧠 **Lesson:** not every authentication failure is caused by our endpoint code. Library compatibility can be the real problem.
 
-## 11. What is NOT implemented yet?
+## 11. Login endpoint — implemented and verified
+
+We added a dedicated `CoachLogin` schema containing only:
+
+```python
+class CoachLogin(BaseModel):
+    email: EmailStr
+    password: str
+```
+
+Then we added:
+
+```text
+POST /auth/login
+```
+
+The login logic now:
+
+1. Finds the coach by email.
+2. Returns `401 Unauthorized` if the email is not found.
+3. Uses `verify_password(...)` to compare the entered password with the stored bcrypt hash.
+4. Returns `401 Unauthorized` if the password is wrong.
+5. Returns safe coach data when credentials are correct.
+
+Verified successful test:
+
+```text
+POST /auth/login
+email: lina@test.com
+password: Test1234
+→ 200 OK
+```
+
+The response returned coach data and did **not** expose the password hash.
+
+:::tip Important
+The current login proves the credentials are correct, but it does **not yet** keep the user authenticated between requests. JWT is the next step.
+:::
+
+## 12. What is NOT implemented yet?
 
 Do not confuse the next design with current code.
 
 The following are **next**:
 
 - `verify_password(...)`
-- Login request schema
-- Login endpoint
 - JWT token creation
 - Reading the logged-in coach from a token
 - Protected routes
