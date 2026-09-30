@@ -53,6 +53,11 @@ class CoachCreate(BaseModel):
     university: str
     password: str
 
+class CoachLogin(BaseModel):
+    # Login only needs credentials, not profile data.
+    email: EmailStr
+    password: str
+
 class CoachResponse(BaseModel):
     # Safe data returned to the client.
     coach_id: int
@@ -105,7 +110,30 @@ pwd_context = CryptContext(
 def hash_password(password: str):
     # Returns a one-way hash, not the original password.
     return pwd_context.hash(password)
+
+
+def verify_password(plain_password: str, hashed_password: str):
+    # Compare a plain password with the stored bcrypt hash.
+    return pwd_context.verify(
+        plain_password,
+        hashed_password
+    )
 ```
+
+We tested the helper directly before using it in the login endpoint:
+
+```powershell
+python -c "from app.utils.security import hash_password, verify_password; h=hash_password('Test1234'); print(h); print(verify_password('Test1234', h)); print(verify_password('Wrong123', h))"
+```
+
+Observed result:
+
+```text
+True
+False
+```
+
+That isolated the password layer and proved correct and incorrect passwords were handled as expected.
 
 ### Hashing is not encryption
 
@@ -357,15 +385,143 @@ The response returned coach data and did **not** expose the password hash.
 The current login proves the credentials are correct, but it does **not yet** keep the user authenticated between requests. JWT is the next step.
 :::
 
-## 12. What is NOT implemented yet?
+## 12. JWT setup — started, not fully connected yet
 
-Do not confuse the next design with current code.
+We began the JWT layer after verifying login.
 
-The following are **next**:
+### Packages added for this stage
 
-- `verify_password(...)`
-- JWT token creation
-- Reading the logged-in coach from a token
-- Protected routes
+```powershell
+pip install pyjwt python-dotenv
+```
 
-We will add their exact code here only after we implement and test them.
+### Why use `.env`?
+
+The JWT signing key is a secret and should not be hard-coded into source files or committed to GitHub.
+
+The project now has a root-level:
+
+```text
+.env
+```
+
+with variables shaped like:
+
+```env
+SECRET_KEY=<private-random-value>
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+```
+
+The real `SECRET_KEY` must stay private.
+
+### Root `.gitignore`
+
+We created a project-level `.gitignore` and included:
+
+```gitignore
+# Environment variables / secrets
+.env
+
+# Virtual environment
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Local database
+tactiki.db
+*.db
+
+# Misc
+.DS_Store
+```
+
+This prevents secrets, the virtual environment, Python cache files, and the local SQLite database from being committed accidentally.
+
+### `create_access_token()`
+
+We added the beginning of JWT creation to `app/utils/security.py`:
+
+```python
+import os
+from datetime import datetime, timedelta, timezone
+
+import jwt
+from dotenv import load_dotenv
+
+load_dotenv()
+
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(
+    os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
+)
+
+
+def create_access_token(data: dict):
+    # Copy the payload so the caller's dictionary is not modified.
+    to_encode = data.copy()
+
+    # Give the token a limited lifetime.
+    expire = datetime.now(timezone.utc) + timedelta(
+        minutes=ACCESS_TOKEN_EXPIRE_MINUTES
+    )
+
+    # JWT standard expiration claim.
+    to_encode.update({"exp": expire})
+
+    # Sign the token using our private secret key.
+    encoded_jwt = jwt.encode(
+        to_encode,
+        SECRET_KEY,
+        algorithm=ALGORITHM
+    )
+
+    return encoded_jwt
+```
+
+### Why an expiration time?
+
+An access token should not remain valid forever. The `exp` claim limits how long it can be used.
+
+### What should go inside the token?
+
+We plan to identify the coach using the standard JWT subject claim:
+
+```python
+{"sub": "1"}
+```
+
+Here, `sub` means **subject** — the identity the token represents.
+
+:::warning Important security note
+A signed JWT is not a place for passwords or password hashes. Do not put `password`, `password_hash`, or other secrets in the token payload.
+:::
+
+### Exact stopping point
+
+The code for `create_access_token()` has been written, but we intentionally stopped **before verifying the token-generation command and before changing the login response to return a token**.
+
+The next command to run is:
+
+```powershell
+python -c "from app.utils.security import create_access_token; print(create_access_token({'sub': '1'}))"
+```
+
+If it succeeds, we should see a long JWT string beginning with something similar to `eyJ...`.
+
+## 13. What is NOT implemented yet?
+
+The following are still **next**:
+
+- Verify `create_access_token()` from the terminal.
+- Change `POST /auth/login` to return `access_token` and `token_type`.
+- Add JWT decoding/validation.
+- Read the current coach from the token.
+- Add a protected `/auth/me` endpoint.
+- Use Swagger's **Authorize 🔒** flow.
+- Test missing, invalid, and expired tokens.
+
+We will mark these complete only after we implement and test them.

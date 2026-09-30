@@ -18,6 +18,7 @@ const sidebars = {
       collapsed: false,
       items: [
         'authentication',
+        'jwt-setup',
         'request-flow',
         'testing-swagger',
       ],

@@ -30,9 +30,9 @@ This is the page to check when we forget **exactly where we stopped**.
 | Auth router | ✅ Done | Prefix `/auth` |
 | Signup endpoint | ✅ Done | `POST /auth/signup` |
 | Duplicate email test | ✅ Verified | Returns 400 |
-| Login | ⏭️ Next | Not implemented yet |
-| Password verification | ⏭️ Next | Not implemented yet |
-| JWT | ⏭️ Next | Not implemented yet |
+| Login | ✅ Done | `POST /auth/login` tested successfully |
+| Password verification | ✅ Done | Direct `True / False` test + login test |
+| JWT | 🟡 In progress | `.env` + `create_access_token()` written; generation test pending |
 | Protected routes | ⏭️ Next | Not implemented yet |
 | Team CRUD | ⬜ Upcoming | After authentication |
 | Player CRUD | ⬜ Upcoming | After Team CRUD |
@@ -53,7 +53,7 @@ This is the page to check when we forget **exactly where we stopped**.
 
 ## Current stopping point
 
-> **Authentication: immediately before implementing Login + password verification + JWT.**
+> **Authentication: Login and password verification are verified. JWT setup is written; we stopped before the first token-generation test and before wiring JWT into `/auth/login`.**
 
 ## Before writing the next feature
 
@@ -67,16 +67,21 @@ pip freeze > requirements.txt
 
 Reason: authentication packages and the bcrypt version change happened after our first dependency export.
 
-### 2. Add backend `.gitignore` when we prepare the backend repository
+### 2. Backend `.gitignore`
 
-Useful entries later:
+This is now created at the project root and includes:
 
 ```text
+.env
 venv/
 __pycache__/
 *.pyc
-.env
+tactiki.db
+*.db
+.DS_Store
 ```
+
+✅ Completed.
 
 ## Next coding session checklist
 
@@ -88,13 +93,18 @@ When we continue backend implementation:
 [ ] Open /docs
 [ ] Re-test signup with a fresh test email if needed
 [ ] Refresh requirements.txt
-[ ] Implement password verification
-[ ] Create Login schema/endpoint
-[ ] Add JWT
-[ ] Test valid login
-[ ] Test invalid password
-[ ] Test unknown email
-[ ] Protect one endpoint
+[x] Implement password verification
+[x] Create Login schema/endpoint
+[x] Test valid login
+[x] Test invalid password
+[x] Create root .gitignore and protect .env
+[x] Add JWT configuration + create_access_token()
+[ ] Test create_access_token() directly
+[ ] Make login return a JWT
+[ ] Add token validation
+[ ] Add /auth/me protected endpoint
+[ ] Test Swagger Authorize 🔒
+[ ] Test unknown email if not already verified separately
 [ ] Update this notebook
 ```
 

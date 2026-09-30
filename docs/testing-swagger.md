@@ -171,9 +171,11 @@ This confirms that:
 - `CoachResponse` filtered the response;
 - the stored password hash was not exposed.
 
-### Next negative test
+### Wrong-password test — verified ✅
 
-Use the same email with an intentionally wrong password. Expected:
+We then intentionally used the same email with the wrong password.
+
+Observed behavior:
 
 ```text
 401 Unauthorized
@@ -186,3 +188,27 @@ with:
   "detail": "Invalid email or password"
 }
 ```
+
+This proves the endpoint does not only accept correct credentials; it also correctly rejects an invalid password.
+
+### Why return the same message for email/password failure?
+
+The endpoint uses the same generic message:
+
+```text
+Invalid email or password
+```
+
+instead of revealing whether the email exists. This avoids giving unnecessary account-existence information to someone attempting login.
+
+## JWT testing — next checkpoint
+
+JWT generation code is written but the direct token-generation test is still pending.
+
+Next test command:
+
+```powershell
+python -c "from app.utils.security import create_access_token; print(create_access_token({'sub': '1'}))"
+```
+
+Do not share the generated access token publicly.

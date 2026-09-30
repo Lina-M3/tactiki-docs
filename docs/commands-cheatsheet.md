@@ -41,6 +41,12 @@ pip uninstall bcrypt -y
 pip install bcrypt==4.0.1
 ```
 
+JWT/configuration packages added for the current stage:
+
+```powershell
+pip install pyjwt python-dotenv
+```
+
 ## Run backend
 
 ```powershell
@@ -104,4 +110,56 @@ When debugging, ask:
 5. What does the terminal traceback say?
 6. Is the failing line ours or inside a dependency?
 7. Did package versions change?
+```
+
+
+## Test password verification directly
+
+```powershell
+python -c "from app.utils.security import hash_password, verify_password; h=hash_password('Test1234'); print(h); print(verify_password('Test1234', h)); print(verify_password('Wrong123', h))"
+```
+
+Expected final two lines:
+
+```text
+True
+False
+```
+
+## Generate a JWT secret
+
+Use Python's `secrets` module:
+
+```powershell
+python -c "import secrets; print(secrets.token_hex(32))"
+```
+
+Put the generated value in `.env` and **do not paste it into documentation or commit it to GitHub**.
+
+## Test JWT generation — next command
+
+```powershell
+python -c "from app.utils.security import create_access_token; print(create_access_token({'sub': '1'}))"
+```
+
+Expected shape:
+
+```text
+eyJ...
+```
+
+The exact token value will be different and should be treated as sensitive session data.
+
+## Root `.gitignore`
+
+Current project-root entries:
+
+```gitignore
+.env
+venv/
+__pycache__/
+*.pyc
+tactiki.db
+*.db
+.DS_Store
 ```

@@ -117,10 +117,26 @@ The login endpoint receives email and password through a dedicated Pydantic sche
 
 To avoid revealing whether a specific account exists. Both cases return `Invalid email or password`.
 
+### What is the purpose of the `.env` file in your authentication setup?
+
+It stores configuration that should not be hard-coded into source files, especially the JWT `SECRET_KEY`. The root `.gitignore` excludes `.env` so the secret is not committed accidentally.
+
+### Why does an access token need an expiration time?
+
+A token should not stay valid forever. We add the standard JWT `exp` claim so the access token has a limited lifetime.
+
+### What does `sub` mean in JWT?
+
+`sub` means **subject**. We plan to store the coach identifier there so later token validation can determine which coach is making the request.
+
+### Is JWT encrypted?
+
+For our planned HS256 setup, the token is **signed**, so we can detect tampering, but its payload should not be treated as a secret storage area. That is why passwords and password hashes must never be placed in the payload.
+
 ## Questions we should NOT pretend are finished yet
 
-If asked today about Login/JWT, be clear:
+If asked today about JWT, be precise:
 
-> Signup, hashing, login, and password verification are implemented and tested. JWT generation and protected endpoints are the next authentication milestone and are not yet completed.
+> Signup, hashing, login, and password verification are implemented and tested. The JWT configuration and token-creation function are written, but token generation has not yet been verified in the terminal, login does not yet return the token, and protected endpoints are not implemented yet.
 
 That answer is better than describing planned code as if it were already implemented.

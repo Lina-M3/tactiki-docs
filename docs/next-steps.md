@@ -7,7 +7,7 @@ title: Next Steps
 
 This page separates future work from completed work.
 
-## Immediate next milestone — Login + JWT
+## Immediate next milestone — Finish JWT authentication
 
 The next authentication stage should complete this flow:
 
@@ -28,14 +28,18 @@ Use token for protected endpoints
 ### Tasks we still need to implement
 
 ```text
-[ ] password verification helper
-[ ] login request schema
-[ ] login endpoint
-[ ] choose/install JWT dependency
-[ ] access token creation function
+[x] password verification helper
+[x] login request schema
+[x] login endpoint
+[x] install JWT/config dependencies
+[x] write access token creation function
+[x] create .env configuration
+[x] create root .gitignore to protect secrets
+[ ] test access token creation directly
+[ ] make login return token response
 [ ] token validation dependency
 [ ] current coach extraction
-[ ] first protected endpoint
+[ ] first protected endpoint (/auth/me)
 [ ] Swagger Authorization test
 ```
 
