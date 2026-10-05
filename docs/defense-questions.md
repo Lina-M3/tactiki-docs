@@ -5,138 +5,219 @@ title: Defense Questions
 
 # Defense Questions — Current Work
 
-These questions are based on code we have actually worked on so far.
+These questions are based on code we have actually implemented so far.
 
 ## Architecture
 
-### Why did you use FastAPI?
+### Why FastAPI?
 
-FastAPI gives us a structured way to build HTTP API endpoints and automatically generates OpenAPI/Swagger documentation, which we are already using to test the backend before frontend integration.
+FastAPI gives us structured HTTP endpoints, Pydantic validation, dependency injection, and automatic OpenAPI/Swagger documentation. We are already using Swagger to verify backend behavior before React integration.
 
-### Why did you not put all code in `main.py`?
+### Why not put everything in `main.py`?
 
-We separated responsibilities into database configuration, ORM models, Pydantic schemas, routers, and utilities. This makes the project easier to understand and maintain as more features are added.
+We separated responsibilities into database configuration, models, schemas, routers, dependencies, and utilities. This makes each feature easier to understand, test, and extend.
 
 ### What is the difference between a router and `main.py`?
 
-`main.py` creates/configures the application. Routers organize endpoints by feature. For example, authentication endpoints live in `app/routers/auth.py`.
+`main.py` creates/configures the app and includes routers. Routers contain feature endpoints such as authentication, teams, and players.
 
 ## Database
 
-### Why are you using SQLAlchemy?
+### Why SQLAlchemy?
 
-SQLAlchemy lets us represent database tables as Python classes and work with records using ORM objects while still defining keys and relationships.
+It maps database tables to Python classes and lets us work with records through ORM objects while still defining keys, foreign keys, and relationships.
 
-### What is `Base`?
+### Model vs Schema?
 
-`Base = declarative_base()` is the parent class for our SQLAlchemy ORM models. SQLAlchemy uses model metadata from these classes when creating tables.
+- SQLAlchemy Model = database storage structure.
+- Pydantic Schema = API request/response structure.
 
-### Why do you import models before `Base.metadata.create_all(...)`?
+Example: `Player` stores `overall_score`, but `PlayerCreate` no longer accepts `overall_score` because the server calculates it.
 
-SQLAlchemy needs the model classes loaded so their table metadata is registered before `create_all` runs.
+### ForeignKey vs relationship?
 
-### What is a primary key?
-
-A primary key uniquely identifies a row. Example: `coach_id`, `team_id`, and `player_id`.
-
-### What is a foreign key?
-
-A foreign key connects one table to another. Example: `Team.coach_id` references `Coach.coach_id`.
-
-### What is `back_populates`?
-
-It connects both sides of an ORM relationship. For example, `Coach.teams` and `Team.coach` describe opposite directions of the same relationship.
+`ForeignKey` creates the database-level reference. `relationship` makes ORM navigation easier in Python.
 
 ### Why does `LineupPlayer` use two primary keys?
 
-`lineup_id` and `player_id` together create a composite primary key for the lineup-player association.
-
-## API and validation
-
-### What is the difference between an SQLAlchemy model and Pydantic schema?
-
-The SQLAlchemy model defines how data is stored in the database. The Pydantic schema defines the data shape accepted or returned by the API.
-
-### Why use `EmailStr`?
-
-It validates that the provided value has an email-like format before normal endpoint logic continues.
-
-### What does `response_model=CoachResponse` help with?
-
-It defines the shape of the successful response and prevents us from intentionally exposing fields such as `password_hash` through that response schema.
-
-## Sessions and dependencies
-
-### What does `Depends(get_db)` do?
-
-FastAPI calls our database dependency and injects a SQLAlchemy Session into the endpoint.
-
-### Why use `try/finally` in `get_db()`?
-
-It makes sure the database session is closed after the request even if an error occurs.
-
-### What is the difference between `db.add`, `db.commit`, and `db.refresh`?
-
-- `add` stages the ORM object for persistence.
-- `commit` commits the transaction.
-- `refresh` reloads the object from the database so generated/current values are available.
+`lineup_id + player_id` form a composite key identifying a specific player's assignment inside a specific lineup.
 
 ## Authentication
 
-### Why not store the plain password?
+### Why not store plain passwords?
 
-Storing plain passwords would expose users' passwords if the database were leaked. We store a one-way password hash instead.
+A database leak would expose them directly. We store a one-way bcrypt hash instead.
 
-### What did the bcrypt error teach you?
+### What does login return now?
 
-The endpoint logic was not the only possible source of failure. We isolated the hashing function, checked package versions, found a Passlib/bcrypt compatibility problem, and fixed it by using bcrypt 4.0.1.
+A valid login returns a JWT access token:
 
-### Why did signup return 400 on the second test?
+```json
+{
+  "access_token": "eyJ...",
+  "token_type": "bearer"
+}
+```
 
-The first execution had already inserted that email, so the duplicate-email check correctly rejected the repeated signup.
+### What is JWT in simple words?
 
-### Why use 201 instead of 200 for signup?
-
-`201 Created` describes that a new resource was successfully created.
-
-## Testing
-
-### Why do you test with Swagger before React?
-
-It isolates backend behavior. We can verify the endpoint independently, then later troubleshoot frontend/API integration separately.
-
-### What is the difference between 400 and 500 in your tests?
-
-Our 400 was intentional business validation for duplicate email. The earlier 500 represented a server-side failure during password hashing.
-
-### How does your current login work?
-
-The login endpoint receives email and password through a dedicated Pydantic schema, queries the coach by email, and verifies the entered plain password against the stored bcrypt hash using `verify_password(...)`. Invalid credentials return `401 Unauthorized`. Valid credentials currently return safe coach data.
-
-### Why do you return the same message for a missing email and a wrong password?
-
-To avoid revealing whether a specific account exists. Both cases return `Invalid email or password`.
-
-### What is the purpose of the `.env` file in your authentication setup?
-
-It stores configuration that should not be hard-coded into source files, especially the JWT `SECRET_KEY`. The root `.gitignore` excludes `.env` so the secret is not committed accidentally.
-
-### Why does an access token need an expiration time?
-
-A token should not stay valid forever. We add the standard JWT `exp` claim so the access token has a limited lifetime.
-
-### What does `sub` mean in JWT?
-
-`sub` means **subject**. We plan to store the coach identifier there so later token validation can determine which coach is making the request.
+A temporary signed identity card. The coach logs in once, receives a token, and sends it with later protected requests instead of resending the password.
 
 ### Is JWT encrypted?
 
-For our planned HS256 setup, the token is **signed**, so we can detect tampering, but its payload should not be treated as a secret storage area. That is why passwords and password hashes must never be placed in the payload.
+Not in our HS256 setup. It is signed. The signature lets the backend detect tampering, so secrets such as passwords must never be stored in the payload.
 
-## Questions we should NOT pretend are finished yet
+### What does `sub` mean?
 
-If asked today about JWT, be precise:
+`sub` means subject. We store the coach ID there so token validation can identify the current coach.
 
-> Signup, hashing, login, and password verification are implemented and tested. The JWT configuration and token-creation function are written, but token generation has not yet been verified in the terminal, login does not yet return the token, and protected endpoints are not implemented yet.
+### Why `exp`?
 
-That answer is better than describing planned code as if it were already implemented.
+It gives the token an expiration time so it does not stay valid forever.
+
+### What is `get_current_coach()`?
+
+A reusable FastAPI dependency that:
+
+```text
+reads Bearer token
+→ decodes/validates JWT
+→ extracts sub
+→ finds Coach in database
+→ returns current Coach
+```
+
+### Why `/auth/me`?
+
+It proves authentication end-to-end and gives the current coach profile from the token without asking for email/password again.
+
+## Authorization / Ownership
+
+### Authentication vs authorization?
+
+Authentication answers:
+
+> Who is this user?
+
+Authorization answers:
+
+> Is this user allowed to operate on this specific data?
+
+Our Team/Player APIs do both. JWT identifies the coach, then queries check `coach_id` ownership.
+
+### Why check both `team_id` and `coach_id`?
+
+If we only check `team_id`, another logged-in coach could guess an ID and access another coach's team. Filtering by both prevents that.
+
+## Team API
+
+### Why is `coach_id` not in `TeamCreate`?
+
+Because the server gets the coach identity from the JWT. Trusting a client-supplied coach ID would weaken ownership protection.
+
+### Why prevent duplicate team names per coach?
+
+Repeated POST testing created multiple teams with the same name. We added a business rule so the same coach cannot create the same team name twice.
+
+### Why PATCH instead of PUT?
+
+We currently allow partial updates. The coach can update only `team_name` or only `university` without sending the full object.
+
+## Player API
+
+### Why is `team_id` in the URL instead of `PlayerCreate`?
+
+The route is nested under the team:
+
+```text
+/teams/{team_id}/players
+```
+
+The backend verifies the team belongs to the current coach before creating the player.
+
+### How do you prevent duplicate players?
+
+We check the player's name inside the same team using `team_id + player_name`.
+
+### Why is `overall_score` not an input anymore?
+
+It is a derived value. If the client could submit it manually, it could disagree with the six skill ratings.
+
+### How is OverallScore calculated now?
+
+Current implementation:
+
+```text
+(speed + passing + shooting + defending + stamina + dribbling) / 6
+```
+
+rounded to two decimals.
+
+### Is that formula specified in the report?
+
+The report says OverallScore is calculated, but it does not define the exact formula. The simple average is our current implementation decision and can later be replaced by a weighted formula if needed.
+
+## Player Progress
+
+### When is a progress record created?
+
+Only when at least one of the six skill ratings changes.
+
+Changing only name, position, height, weight, or activity should not create a performance-change record.
+
+### What are the progress statuses?
+
+```text
+current > previous → improved
+current < previous → declined
+current = previous → stable
+```
+
+### Why a separate PlayerProgress table?
+
+`Player` stores the latest state. `PlayerProgress` keeps the historical timeline so we can later show development graphs and compare performance over time.
+
+### What is the `last_update` format?
+
+The API returns an ISO-style datetime such as:
+
+```text
+2026-10-01T06:38:03.217011
+```
+
+The current database default uses UTC time. The frontend can later convert it to a friendlier Saudi/local display.
+
+## Delete Player
+
+### Why not always permanently delete a player?
+
+If that player appears in a saved lineup, deleting the record could break historical lineup data.
+
+Current rule:
+
+```text
+No lineup history → permanent delete
+Has lineup history → is_active = False
+```
+
+This matches the project requirement to preserve historical records.
+
+## Testing
+
+### Why Swagger before React?
+
+It isolates backend behavior. If the API works in Swagger but fails from React later, the issue is likely in integration rather than core endpoint logic.
+
+### Why did POST /teams create multiple records?
+
+Because POST means create. Every successful Execute was another create request. We later cleaned the duplicates and added duplicate-name validation.
+
+### Why did a protected endpoint return 401 even though login worked before?
+
+Swagger had lost the authorization token. We checked the Curl output, saw there was no `Authorization: Bearer ...` header, authorized again, then the route worked.
+
+## Exact current state
+
+If asked today:
+
+> Authentication and JWT are implemented and tested. Team CRUD is complete with ownership and duplicate-name protection. Player CRUD is implemented with ownership checks, automatic OverallScore calculation, and automatic PlayerProgress history. The next major milestone is the Lineup API; the player deactivation branch that depends on saved lineup history will be fully verified during that stage.
