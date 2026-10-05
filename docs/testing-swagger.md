@@ -27,62 +27,21 @@ If an endpoint fails in Swagger, the problem is probably in the backend/API laye
 
 If it works in Swagger but later fails from React, we can investigate frontend integration separately.
 
-That separation makes debugging much easier.
+## Authentication testing
 
-## Root endpoint test
-
-Endpoint:
-
-```text
-GET /
-```
-
-Expected successful response:
-
-```json
-{
-  "message": "Tactiki Backend is running successfully"
-}
-```
-
-Status:
-
-```text
-200 OK
-```
-
-## Signup test
-
-Endpoint:
+### Signup
 
 ```text
 POST /auth/signup
 ```
 
-Example body:
-
-```json
-{
-  "full_name": "Lina Test",
-  "email": "lina@test.com",
-  "university": "King Abdulaziz University",
-  "password": "Test1234"
-}
-```
-
-### Fresh email
-
-Expected behavior:
+Fresh email → expected:
 
 ```text
 201 Created
 ```
 
-Response should contain safe coach data and not contain the password/hash.
-
-### Repeated email
-
-Expected behavior:
+Repeated email → expected:
 
 ```text
 400 Bad Request
@@ -94,94 +53,26 @@ Expected behavior:
 }
 ```
 
-## How to interpret common status codes
-
-| Status | Simple meaning | In our current work |
-|---|---|---|
-| `200` | Request succeeded | Root endpoint |
-| `201` | Resource created | Successful signup |
-| `400` | Request violates a rule | Duplicate email |
-| `422` | Validation problem | FastAPI/Pydantic may reject invalid body |
-| `500` | Server-side failure | We saw this during bcrypt hashing failure |
-
-:::tip بالعربي
-لا تشوفين كلمة Error وتفترضين إن المشروع خربان. أول شيء شوفي **status code** و **response body** و **terminal traceback**.
-:::
-
-## When you see 500
-
-Look at the terminal running Uvicorn.
-
-A browser/Swagger `500 Internal Server Error` usually does not explain the root cause. The Python traceback in the terminal tells us where execution failed.
-
-Our bcrypt problem is a perfect example: Swagger only showed a server error, while the terminal showed the dependency failure.
-
-## Good testing habit
-
-For every new endpoint we add later, test at least:
-
-1. Valid request.
-2. Missing/invalid data.
-3. Duplicate/not-found case where relevant.
-4. Unauthorized request if the endpoint becomes protected.
-5. Response shape.
-6. Database result.
-
-We will keep adding exact tests as endpoints are implemented.
-
-
-## Login test — verified
-
-Endpoint:
+### Login
 
 ```text
 POST /auth/login
 ```
 
-Successful credentials used:
+Successful login now returns:
 
 ```json
 {
-  "email": "lina@test.com",
-  "password": "Test1234"
+  "access_token": "eyJ...",
+  "token_type": "bearer"
 }
 ```
 
-Observed result:
-
-```text
-200 OK
-```
-
-The response returned:
-
-```json
-{
-  "coach_id": 1,
-  "full_name": "Lina Test",
-  "email": "lina@test.com",
-  "university": "King Abdulaziz University"
-}
-```
-
-This confirms that:
-
-- the coach was found by email;
-- password verification succeeded;
-- `CoachResponse` filtered the response;
-- the stored password hash was not exposed.
-
-### Wrong-password test — verified ✅
-
-We then intentionally used the same email with the wrong password.
-
-Observed behavior:
+Wrong password → expected:
 
 ```text
 401 Unauthorized
 ```
-
-with:
 
 ```json
 {
@@ -189,26 +80,271 @@ with:
 }
 ```
 
-This proves the endpoint does not only accept correct credentials; it also correctly rejects an invalid password.
+## Swagger Authorize 🔒
 
-### Why return the same message for email/password failure?
+Protected endpoints require the JWT.
 
-The endpoint uses the same generic message:
+Steps:
 
 ```text
-Invalid email or password
+1. Run POST /auth/login
+2. Copy access_token only
+3. Click Authorize 🔒
+4. Paste the token value
+5. Authorize
+6. Close
+7. Execute protected endpoint
 ```
 
-instead of revealing whether the email exists. This avoids giving unnecessary account-existence information to someone attempting login.
+The outgoing request should contain:
 
-## JWT testing — next checkpoint
-
-JWT generation code is written but the direct token-generation test is still pending.
-
-Next test command:
-
-```powershell
-python -c "from app.utils.security import create_access_token; print(create_access_token({'sub': '1'}))"
+```text
+Authorization: Bearer eyJ...
 ```
 
-Do not share the generated access token publicly.
+If Swagger lost authorization, a protected route returns:
+
+```text
+401 Unauthorized
+```
+
+```json
+{
+  "detail": "Not authenticated"
+}
+```
+
+We saw this when testing `POST /teams`; logging in and authorizing again fixed it.
+
+## `/auth/me` test
+
+```text
+GET /auth/me
+```
+
+Expected:
+
+```text
+200 OK
+```
+
+and current-coach data. This is our quick test that the token still works.
+
+## Team tests
+
+### Create
+
+```text
+POST /teams
+```
+
+Example:
+
+```json
+{
+  "team_name": "Tactiki FC",
+  "university": "King Abdulaziz University"
+}
+```
+
+Expected:
+
+```text
+201 Created
+```
+
+The returned `coach_id` should come from the JWT, not the request body.
+
+### Duplicate name
+
+Executing the same team name for the same coach should now return:
+
+```text
+400 Bad Request
+```
+
+```json
+{
+  "detail": "Team name already exists"
+}
+```
+
+### List teams
+
+```text
+GET /teams
+```
+
+Expected response is a JSON **list**, so it starts with `[` and ends with `]`.
+
+### Read one
+
+```text
+GET /teams/{team_id}
+```
+
+Known owned team → `200`.
+Unknown/not-owned team → `404 Team not found`.
+
+### Update
+
+```text
+PATCH /teams/{team_id}
+```
+
+Example partial body:
+
+```json
+{
+  "team_name": "Tactiki United"
+}
+```
+
+### Delete
+
+```text
+DELETE /teams/{team_id}
+```
+
+We used this to clean duplicate test teams created before the duplicate-name rule was added.
+
+## Player tests
+
+### Add player
+
+```text
+POST /teams/{team_id}/players
+```
+
+Example:
+
+```json
+{
+  "player_name": "Ahmed Ali",
+  "position": "CM",
+  "height": 178,
+  "weight": 72,
+  "speed": 82,
+  "passing": 86,
+  "shooting": 76,
+  "defending": 70,
+  "stamina": 88,
+  "dribbling": 84
+}
+```
+
+Expected:
+
+```text
+201 Created
+```
+
+`overall_score` is calculated by the backend and returned in the response.
+
+### Duplicate player
+
+Same name inside the same team → expected:
+
+```text
+400 Player already exists in this team
+```
+
+### List players
+
+```text
+GET /teams/{team_id}/players
+```
+
+Returns a list.
+
+### Get one player
+
+```text
+GET /teams/{team_id}/players/{player_id}
+```
+
+Unknown player → `404 Player not found`.
+
+### Update skills
+
+```text
+PATCH /teams/{team_id}/players/{player_id}
+```
+
+Example:
+
+```json
+{
+  "speed": 90,
+  "stamina": 91
+}
+```
+
+Expected:
+
+- those fields change;
+- `overall_score` is recalculated automatically;
+- a progress record is created because a skill changed.
+
+## Progress-history test
+
+```text
+GET /teams/{team_id}/players/{player_id}/progress
+```
+
+Expected response:
+
+```json
+[
+  {
+    "progress_id": 1,
+    "player_id": 1,
+    "previous_score": 82.83,
+    "current_score": 86.83,
+    "progress_status": "improved",
+    "last_update": "2026-10-01T06:38:03.217011"
+  }
+]
+```
+
+## Player delete/deactivate test
+
+```text
+DELETE /teams/{team_id}/players/{player_id}
+```
+
+Current logic:
+
+```text
+no lineup history → permanent delete
+has lineup history → is_active = False
+```
+
+The second branch will be fully testable after Lineup API creates `LineupPlayer` history.
+
+## Useful status codes
+
+| Status | Meaning in our work |
+|---|---|
+| `200` | Successful read/update/login |
+| `201` | New resource created |
+| `204` | Successful delete with no body where used |
+| `400` | Business-rule validation such as duplicate email/team/player |
+| `401` | Missing/invalid authentication |
+| `404` | Resource not found or not owned by current coach |
+| `422` | Pydantic/request validation problem |
+| `500` | Server-side failure; inspect Uvicorn traceback |
+
+## Testing habit
+
+For every new endpoint:
+
+```text
+1. Test valid request.
+2. Test missing/invalid data.
+3. Test duplicate/not-found case.
+4. Test without authorization if protected.
+5. Verify response shape.
+6. Verify database side effect.
+7. Re-test related endpoints after the change.
+```
