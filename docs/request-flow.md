@@ -5,170 +5,223 @@ title: Request Flow
 
 # Request Flow — How the Backend Thinks
 
-This page is for understanding the whole flow instead of memorizing isolated files.
+This page explains the main request paths we have implemented.
 
-## Example: Coach signup
-
-Imagine Swagger sends:
-
-```json
-{
-  "full_name": "Lina Test",
-  "email": "lina@test.com",
-  "university": "King Abdulaziz University",
-  "password": "Test1234"
-}
-```
-
-## Step 1 — FastAPI route receives the request
-
-The request goes to:
+## Signup flow
 
 ```text
 POST /auth/signup
-```
-
-The endpoint is defined in:
-
-```text
-app/routers/auth.py
-```
-
-## Step 2 — Pydantic validates the body
-
-FastAPI sees:
-
-```python
-coach_data: CoachCreate
-```
-
-So it uses `CoachCreate` from:
-
-```text
-app/schemas/coach.py
-```
-
-If the body structure is invalid, validation can stop the request before our signup logic runs.
-
-## Step 3 — FastAPI injects the DB session
-
-```python
-db: Session = Depends(get_db)
-```
-
-`get_db()` comes from:
-
-```text
-app/database.py
-```
-
-Now the endpoint can query and write to SQLite.
-
-## Step 4 — Check business rule
-
-We do not allow the same email twice:
-
-```python
-existing_coach = db.query(Coach).filter(
-    Coach.email == coach_data.email
-).first()
-```
-
-If found:
-
-```python
-raise HTTPException(
-    status_code=400,
-    detail="Email already registered"
-)
-```
-
-## Step 5 — Protect the password
-
-Instead of:
-
-```python
-password_hash=coach_data.password  # WRONG
-```
-
-we use:
-
-```python
-password_hash=hash_password(coach_data.password)
-```
-
-## Step 6 — Build ORM object
-
-```python
-new_coach = Coach(...)
-```
-
-At this moment, we have a Python ORM object prepared for the database.
-
-## Step 7 — Save
-
-```python
-db.add(new_coach)
-db.commit()
-db.refresh(new_coach)
-```
-
-### Easy meaning
-
-```text
-add      = جهز السجل للإضافة
-commit   = احفظ التغيير فعليًا
-refresh  = رجع أحدث نسخة من السجل من قاعدة البيانات
-```
-
-## Step 8 — Return safe response
-
-We return `new_coach`, but the endpoint has:
-
-```python
-response_model=CoachResponse
-```
-
-So the API response is shaped according to `CoachResponse`.
-
-The password hash is not part of that schema.
-
-## The whole chain
-
-```text
-Request JSON
    ↓
-CoachCreate
+CoachCreate validates body
    ↓
-signup()
+get_db() provides SQLAlchemy Session
    ↓
-get_db()
+Check duplicate email
    ↓
-Coach SQLAlchemy model
+hash_password()
    ↓
-SQLite
+Create Coach ORM object
+   ↓
+db.add → db.commit → db.refresh
    ↓
 CoachResponse
    ↓
-Response JSON
+201 Created
+```
+
+## Login + JWT flow
+
+```text
+POST /auth/login
+   ↓
+CoachLogin validates email/password
+   ↓
+Find Coach by email
+   ↓
+verify_password()
+   ↓
+invalid → 401 Unauthorized
+valid
+   ↓
+create_access_token({"sub": coach_id})
+   ↓
+TokenResponse
+   ↓
+access_token + bearer
+```
+
+## Protected request flow
+
+This is now implemented:
+
+```text
+Swagger / future React client
+      ↓
+Authorization: Bearer <JWT>
+      ↓
+HTTPBearer()
+      ↓
+get_current_coach()
+      ↓
+decode_access_token()
+      ↓
+read sub → coach_id
+      ↓
+query Coach
+      ↓
+protected endpoint continues
+```
+
+The first proof was:
+
+```text
+GET /auth/me
+```
+
+which returned the current coach from the token.
+
+## Team creation flow
+
+```text
+POST /teams
+   ↓
+JWT → current_coach
+   ↓
+TeamCreate validates team_name + university
+   ↓
+Check same coach does not already have same team name
+   ↓
+Create Team with coach_id = current_coach.coach_id
+   ↓
+commit
+   ↓
+TeamResponse
+```
+
+The client never chooses `coach_id` directly.
+
+## Read one owned team
+
+```text
+GET /teams/{team_id}
+   ↓
+JWT identifies coach
+   ↓
+query where:
+team_id matches
+AND coach_id matches current coach
+   ↓
+return Team
+or 404
+```
+
+That second condition is the authorization check.
+
+## Player creation flow
+
+```text
+POST /teams/{team_id}/players
+   ↓
+JWT identifies coach
+   ↓
+verify team belongs to coach
+   ↓
+PlayerCreate validates body
+   ↓
+check duplicate player_name inside team
+   ↓
+calculate overall_score from six skills
+   ↓
+create Player
+   ↓
+commit
+   ↓
+PlayerResponse
+```
+
+## Player update + progress flow
+
+```text
+PATCH /teams/{team_id}/players/{player_id}
+      ↓
+verify team ownership
+      ↓
+verify player belongs to team
+      ↓
+remember previous overall_score
+      ↓
+apply only provided fields
+      ↓
+Did any skill change?
+   ┌───────────┴───────────┐
+   No                      Yes
+   │                        │
+commit normal fields     recalculate overall
+                            ↓
+                     compare old/new score
+                            ↓
+             improved / declined / stable
+                            ↓
+                 add PlayerProgress row
+                            ↓
+                         commit
+```
+
+## Progress-history read flow
+
+```text
+GET /teams/{team_id}/players/{player_id}/progress
+      ↓
+verify current coach owns team
+      ↓
+verify player belongs to team
+      ↓
+query PlayerProgress by player_id
+      ↓
+order by last_update ascending
+      ↓
+return timeline list
+```
+
+## Player deletion decision flow
+
+```text
+DELETE /teams/{team_id}/players/{player_id}
+      ↓
+verify ownership
+      ↓
+Does LineupPlayer contain this player?
+   ┌───────────────┴───────────────┐
+   No                              Yes
+   │                                │
+permanent delete              is_active = False
+                               preserve history
+```
+
+The history branch will become fully testable after saved lineups are implemented.
+
+## Main mental model
+
+```text
+Request
+  ↓
+Router
+  ↓
+Schema validation
+  ↓
+Dependencies (DB + auth)
+  ↓
+Ownership/business rules
+  ↓
+SQLAlchemy operation
+  ↓
+Database
+  ↓
+Response schema
+  ↓
+JSON
 ```
 
 :::tip تذكري
-إذا سألوك "كيف البيانات تمشي في النظام؟" اشرحي هذا المسار. هذا أهم من حفظ syntax كل سطر.
+في المناقشة لا تحتاجين تحفظين كل syntax. اشرحي **رحلة الطلب**: من دخل البيانات، مين تحقق منها، كيف عرفنا المستخدم، كيف تحققنا من الملكية، ثم كيف حفظنا أو قرأنا من قاعدة البيانات.
 :::
-
-## Later: protected request flow
-
-This is planned, not implemented yet:
-
-```text
-React sends JWT
-      ↓
-FastAPI checks Authorization header
-      ↓
-token is decoded/validated
-      ↓
-current coach is identified
-      ↓
-protected Team/Player endpoint continues
-```
