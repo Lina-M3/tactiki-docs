@@ -5,46 +5,18 @@ title: Commands Cheat Sheet
 
 # Commands Cheat Sheet
 
-هذه الصفحة سريعة جدًا — للأوامر اللي نحتاج نرجع لها بدون ما ندور في كل التوثيق.
+هذه الصفحة مرجع سريع للأوامر والمسارات اللي نحتاجها كثير.
 
-## Environment
-
-Create virtual environment:
-
-```powershell
-python -m venv venv
-```
-
-Activate on Windows PowerShell:
+## Activate environment
 
 ```powershell
 .\venv\Scripts\Activate.ps1
 ```
 
-## Install current foundation
+If PowerShell blocks activation for the current session:
 
 ```powershell
-pip install fastapi uvicorn sqlalchemy
-```
-
-Authentication helpers used so far:
-
-```powershell
-pip install email-validator
-pip install "passlib[bcrypt]"
-```
-
-bcrypt version that fixed our compatibility problem:
-
-```powershell
-pip uninstall bcrypt -y
-pip install bcrypt==4.0.1
-```
-
-JWT/configuration packages added for the current stage:
-
-```powershell
-pip install pyjwt python-dotenv
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
 ```
 
 ## Run backend
@@ -53,106 +25,145 @@ pip install pyjwt python-dotenv
 uvicorn app.main:app --reload
 ```
 
-Open Swagger:
+Swagger:
 
 ```text
 http://127.0.0.1:8000/docs
 ```
 
-Stop server:
+Stop Uvicorn:
 
 ```text
 Press Ctrl+C
 ```
 
-## Inspect package versions
+## Core packages
+
+```powershell
+pip install fastapi uvicorn sqlalchemy
+pip install email-validator
+pip install "passlib[bcrypt]"
+pip install bcrypt==4.0.1
+pip install pyjwt python-dotenv
+```
+
+## Package inspection
 
 ```powershell
 pip show passlib
 pip show bcrypt
-```
-
-List installed packages:
-
-```powershell
+pip show PyJWT
 pip freeze
-```
-
-Write them to `requirements.txt`:
-
-```powershell
 pip freeze > requirements.txt
 ```
 
-:::warning Current reminder
-We installed packages and changed bcrypt **after** the first requirements export. Run `pip freeze > requirements.txt` again before we treat the environment as finalized.
-:::
-
-## Test password hashing directly
-
-This was useful because it isolates password hashing from FastAPI and the database:
+## Generate JWT secret
 
 ```powershell
-python -c "from app.utils.security import hash_password; print(hash_password('Test1234'))"
+python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
-If this command fails, we know the problem is in the hashing layer/dependencies, not necessarily in the signup route.
+Put the result in `.env`. Never commit/share the real secret.
 
-## Useful mental commands
-
-When debugging, ask:
-
-```text
-1. Is (venv) active?
-2. Is Uvicorn still running?
-3. Does /docs open?
-4. What status code did Swagger return?
-5. What does the terminal traceback say?
-6. Is the failing line ours or inside a dependency?
-7. Did package versions change?
-```
-
-
-## Test password verification directly
+## Password helper test
 
 ```powershell
 python -c "from app.utils.security import hash_password, verify_password; h=hash_password('Test1234'); print(h); print(verify_password('Test1234', h)); print(verify_password('Wrong123', h))"
 ```
 
-Expected final two lines:
+Expected final booleans:
 
 ```text
 True
 False
 ```
 
-## Generate a JWT secret
-
-Use Python's `secrets` module:
-
-```powershell
-python -c "import secrets; print(secrets.token_hex(32))"
-```
-
-Put the generated value in `.env` and **do not paste it into documentation or commit it to GitHub**.
-
-## Test JWT generation — next command
-
-```powershell
-python -c "from app.utils.security import create_access_token; print(create_access_token({'sub': '1'}))"
-```
-
-Expected shape:
+## Swagger authentication shortcut
 
 ```text
-eyJ...
+POST /auth/login
+→ copy access_token
+→ Authorize 🔒
+→ paste token only
+→ Authorize
 ```
 
-The exact token value will be different and should be treated as sensitive session data.
+Protected requests should contain:
+
+```text
+Authorization: Bearer eyJ...
+```
+
+Quick token/current-user test:
+
+```text
+GET /auth/me
+```
+
+## Endpoint map
+
+### Authentication
+
+```text
+POST /auth/signup
+POST /auth/login
+GET  /auth/me
+```
+
+### Teams
+
+```text
+POST   /teams
+GET    /teams
+GET    /teams/{team_id}
+PATCH  /teams/{team_id}
+DELETE /teams/{team_id}
+```
+
+### Players
+
+```text
+POST   /teams/{team_id}/players
+GET    /teams/{team_id}/players
+GET    /teams/{team_id}/players/{player_id}
+PATCH  /teams/{team_id}/players/{player_id}
+DELETE /teams/{team_id}/players/{player_id}
+GET    /teams/{team_id}/players/{player_id}/progress
+```
+
+## HTTP memory trick
+
+```text
+POST   = create
+GET    = read
+PATCH  = partial update
+DELETE = remove/deactivate
+```
+
+## Overall score formula
+
+Current implementation:
+
+```text
+(speed + passing + shooting + defending + stamina + dribbling) / 6
+```
+
+Rounded to 2 decimal places.
+
+## Useful status codes
+
+```text
+200 = success
+201 = created
+204 = delete/no response body where configured
+400 = business rule failed (duplicate)
+401 = auth missing/invalid
+404 = resource missing/not owned
+422 = request validation failed
+500 = backend error → inspect terminal traceback
+```
 
 ## Root `.gitignore`
-
-Current project-root entries:
 
 ```gitignore
 .env
@@ -162,4 +173,19 @@ __pycache__/
 tactiki.db
 *.db
 .DS_Store
+```
+
+## Debugging checklist
+
+```text
+1. Is (venv) active?
+2. Is Uvicorn running?
+3. Did I save the file?
+4. Did the reload happen?
+5. Does /docs show the new route?
+6. Am I Authorized 🔒?
+7. What status code did I get?
+8. What does response body say?
+9. What does terminal traceback say?
+10. Did I accidentally run POST when I only wanted GET?
 ```
