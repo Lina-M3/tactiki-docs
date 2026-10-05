@@ -3,45 +3,37 @@ sidebar_position: 6
 title: JWT Setup
 ---
 
-# JWT Setup — Current Checkpoint
+# JWT Setup — Completed Checkpoint
 
-This page records exactly where we stopped in the JWT stage.
+JWT is now fully connected to login and protected routes.
 
 ## Why JWT comes after login
 
-The login endpoint already proves that the email and password are correct.
-
-JWT adds the next capability:
+Login proves the credentials are correct. JWT lets the backend remember that authenticated identity across later requests without asking for the password again.
 
 ```text
 Correct credentials
        ↓
 Create signed access token
        ↓
-Frontend keeps token temporarily
-       ↓
-Frontend sends token with later requests
+Client sends token with later requests
        ↓
 Backend validates token
        ↓
 Protected endpoint knows which coach is calling
 ```
 
-Without the token, our current login only verifies credentials for that single request.
-
 ## Packages
-
-For this stage we added:
 
 ```powershell
 pip install pyjwt python-dotenv
 ```
 
+Installed environment confirmed PyJWT successfully.
+
 ## Environment configuration
 
-We created a root-level `.env` file.
-
-Structure:
+Root `.env`:
 
 ```env
 SECRET_KEY=<private-random-value>
@@ -49,42 +41,17 @@ ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 ```
 
-### Generate a secret key
+Generate a secret when needed:
 
 ```powershell
 python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
 :::danger
-Never put the real `SECRET_KEY` in this notebook, screenshots, GitHub commits, or messages.
+Never place the real `SECRET_KEY` in this notebook, screenshots, messages, or GitHub commits.
 :::
 
-## Protecting local/private files
-
-The root project `.gitignore` now includes:
-
-```gitignore
-# Environment variables / secrets
-.env
-
-# Virtual environment
-venv/
-
-# Python cache
-__pycache__/
-*.pyc
-
-# Local database
-tactiki.db
-*.db
-
-# Misc
-.DS_Store
-```
-
-Note: the `venv` directory may also contain its own automatically created `.gitignore`. We intentionally created **another `.gitignore` at the project root**, because that is the one that protects the whole backend repository.
-
-## Current `create_access_token()`
+## Access-token creation
 
 File:
 
@@ -92,127 +59,154 @@ File:
 app/utils/security.py
 ```
 
-Core logic:
-
 ```python
-import os
-from datetime import datetime, timedelta, timezone
-
-import jwt
-from dotenv import load_dotenv
-
-load_dotenv()
-
-SECRET_KEY = os.getenv("SECRET_KEY")
-ALGORITHM = os.getenv("ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(
-    os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
-)
-
-
 def create_access_token(data: dict):
-    # Work on a copy so we do not mutate the caller's dictionary.
     to_encode = data.copy()
 
-    # Calculate token expiration in UTC.
     expire = datetime.now(timezone.utc) + timedelta(
         minutes=ACCESS_TOKEN_EXPIRE_MINUTES
     )
 
-    # Add standard expiration claim.
     to_encode.update({"exp": expire})
 
-    # Sign and encode the token.
-    encoded_jwt = jwt.encode(
+    return jwt.encode(
         to_encode,
         SECRET_KEY,
         algorithm=ALGORITHM
     )
-
-    return encoded_jwt
 ```
 
-## Why `data.copy()`?
-
-If we wrote directly into the original dictionary, adding `exp` would modify the object passed by the caller.
-
-Using:
+Login calls it with:
 
 ```python
-to_encode = data.copy()
+create_access_token(
+    data={"sub": str(coach.coach_id)}
+)
 ```
 
-keeps the function safer and easier to reason about.
+### Claims used
 
-## Why UTC?
+- `sub` = subject, currently the coach ID.
+- `exp` = expiration time.
 
-Authentication timestamps should not depend on a user's local timezone.
+## Login response
 
-We use:
+`POST /auth/login` now returns:
+
+```json
+{
+  "access_token": "eyJ...",
+  "token_type": "bearer"
+}
+```
+
+The schema is:
 
 ```python
-datetime.now(timezone.utc)
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str
 ```
 
-so the token expiration is based on a consistent global time reference.
+## Token validation
 
-## Claims we are using
-
-### `exp`
-
-Expiration time. After this time, the token should no longer be accepted.
-
-### `sub`
-
-Subject. We plan to put the coach identifier here:
+We added:
 
 ```python
-{"sub": "1"}
+def decode_access_token(token: str):
+    try:
+        payload = jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM]
+        )
+        return payload
+    except jwt.InvalidTokenError:
+        return None
 ```
 
-That lets later validation identify the authenticated coach.
+The function rejects invalid/expired JWTs through PyJWT validation.
 
-## Important security idea
+## Current-coach dependency
 
-JWT is not a password vault.
-
-Do not put these inside the payload:
+File:
 
 ```text
-password
-password_hash
-SECRET_KEY
-private personal data that does not need to be there
+app/dependencies/auth.py
 ```
 
-## Exact next test
-
-We stopped before running:
-
-```powershell
-python -c "from app.utils.security import create_access_token; print(create_access_token({'sub': '1'}))"
-```
-
-Expected: a long token string, often beginning with:
+It uses `HTTPBearer()` and follows this chain:
 
 ```text
-eyJ...
+Authorization header
+      ↓
+Bearer token
+      ↓
+decode_access_token()
+      ↓
+read sub
+      ↓
+coach_id
+      ↓
+query Coach
+      ↓
+return current Coach
 ```
 
-We only need to confirm that it appears. We do **not** need to share the full token.
+This function is now reused across Team and Player routes.
 
-## After that test
+## Protected `/auth/me`
 
-Next coding steps:
+Endpoint:
 
 ```text
-1. Create a token response schema.
-2. Change POST /auth/login to return:
-   access_token
-   token_type = "bearer"
-3. Decode and validate incoming tokens.
-4. Build a current-coach dependency.
-5. Add GET /auth/me.
-6. Use Swagger Authorize 🔒.
-7. Test missing / invalid / expired tokens.
+GET /auth/me
+```
+
+This was our first end-to-end proof that JWT worked.
+
+After Swagger authorization, it returned the authenticated coach profile using the token alone.
+
+## Swagger authorization
+
+1. Login.
+2. Copy the token value beginning with something like `eyJ...`.
+3. Press **Authorize 🔒**.
+4. Paste the token value.
+5. Authorize.
+6. Test protected routes.
+
+When it works, Swagger sends:
+
+```text
+Authorization: Bearer eyJ...
+```
+
+## Important mental model
+
+JWT is like a temporary signed entry card:
+
+```text
+email + password
+      ↓ login once
+JWT access token
+      ↓ send repeatedly
+protected APIs
+```
+
+The token is not the user's password and should not contain passwords/password hashes.
+
+## JWT milestone status
+
+```text
+Configuration ✅
+Secret outside source code ✅
+Token creation ✅
+Login returns token ✅
+Token decoding ✅
+Expiration validation ✅
+Current-coach extraction ✅
+Protected endpoint ✅
+Swagger Authorize ✅
+Team/Player routes use current coach ✅
 ```
