@@ -5,37 +5,36 @@ title: Authentication
 
 # Authentication
 
-Authentication is the first real feature built on top of the database.
+Authentication is now working end-to-end.
 
-Current state:
-
-✅ Signup schema  
-✅ Password hashing  
-✅ Signup endpoint  
-✅ Duplicate email check  
-✅ Swagger test  
-✅ Login  
-✅ Password verification  
-⏭️ JWT  
-⏭️ Protected endpoints
-
-## 1. Why separate schemas from models?
-
-The database `Coach` model stores:
+## Current state
 
 ```text
-coach_id
-full_name
-email
-university
-password_hash
+Signup ✅
+Duplicate email protection ✅
+Password hashing ✅
+Login ✅
+Password verification ✅
+JWT creation ✅
+JWT decoding/validation ✅
+Current coach dependency ✅
+GET /auth/me ✅
+Swagger Authorize ✅
+Protected Team/Player routes ✅
 ```
 
-But a signup request needs a plain `password` temporarily so it can be hashed.
+## Files involved
 
-That is why we created API schemas.
+```text
+app/schemas/coach.py
+app/routers/auth.py
+app/utils/security.py
+app/dependencies/auth.py
+.env
+.gitignore
+```
 
-## 2. Coach schemas
+## Coach schemas
 
 File:
 
@@ -43,54 +42,45 @@ File:
 app/schemas/coach.py
 ```
 
-```python title="app/schemas/coach.py"
-from pydantic import BaseModel, EmailStr
+Current roles:
 
+```python
 class CoachCreate(BaseModel):
-    # Data allowed/required from the signup request.
     full_name: str
     email: EmailStr
     university: str
     password: str
 
 class CoachLogin(BaseModel):
-    # Login only needs credentials, not profile data.
     email: EmailStr
     password: str
 
 class CoachResponse(BaseModel):
-    # Safe data returned to the client.
     coach_id: int
     full_name: str
     email: EmailStr
     university: str
 
     class Config:
-        # Allows Pydantic to build this response from SQLAlchemy objects.
         from_attributes = True
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str
 ```
 
-### Why use `EmailStr`?
+Why separate them?
 
-It gives email-format validation through Pydantic.
-
-That required:
-
-```powershell
-pip install email-validator
+```text
+CoachCreate   = what signup accepts
+CoachLogin    = what login accepts
+CoachResponse = safe coach data returned by API
+TokenResponse = JWT login result
 ```
 
-### Why does `CoachResponse` not include the password?
+The plain password is never returned. `password_hash` is also intentionally excluded from API responses.
 
-Because the API should never send the password or password hash back to the frontend.
-
-:::danger تذكري
-`password` يدخل للـAPI فقط عشان نعمل له hash.  
-`password_hash` يُخزن في قاعدة البيانات.  
-ولا واحد منهم المفروض يرجع للعميل في `CoachResponse`.
-:::
-
-## 3. Password hashing helper
+## Password hashing
 
 File:
 
@@ -98,204 +88,70 @@ File:
 app/utils/security.py
 ```
 
-```python title="app/utils/security.py"
-from passlib.context import CryptContext
+We use Passlib with bcrypt:
 
-# Configure Passlib to use bcrypt.
+```python
 pwd_context = CryptContext(
     schemes=["bcrypt"],
     deprecated="auto"
 )
 
+
 def hash_password(password: str):
-    # Returns a one-way hash, not the original password.
     return pwd_context.hash(password)
 
 
 def verify_password(plain_password: str, hashed_password: str):
-    # Compare a plain password with the stored bcrypt hash.
     return pwd_context.verify(
         plain_password,
         hashed_password
     )
 ```
 
-We tested the helper directly before using it in the login endpoint:
+### bcrypt compatibility issue
+
+The environment originally had a Passlib/bcrypt combination that failed during hashing.
+
+The working fix was:
 
 ```powershell
-python -c "from app.utils.security import hash_password, verify_password; h=hash_password('Test1234'); print(h); print(verify_password('Test1234', h)); print(verify_password('Wrong123', h))"
+pip uninstall bcrypt -y
+pip install bcrypt==4.0.1
 ```
 
-Observed result:
+This was verified by testing hashing separately before returning to the API.
 
-```text
-True
-False
-```
+## Signup
 
-That isolated the password layer and proved correct and incorrect passwords were handled as expected.
-
-### Hashing is not encryption
-
-A hash is designed to be one-way.
-
-We do not need to recover the original password. During login, we will verify the entered password against the stored hash.
-
-## 4. Authentication router
-
-File:
-
-```text
-app/routers/auth.py
-```
-
-Current signup endpoint:
-
-```python title="app/routers/auth.py"
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-
-from app.database import get_db
-from app.models.coach import Coach
-from app.schemas.coach import CoachCreate, CoachResponse
-from app.utils.security import hash_password
-
-router = APIRouter(
-    prefix="/auth",
-    tags=["Authentication"]
-)
-
-@router.post(
-    "/signup",
-    response_model=CoachResponse,
-    status_code=status.HTTP_201_CREATED
-)
-def signup(
-    coach_data: CoachCreate,
-    db: Session = Depends(get_db)
-):
-    # 1) Check if the email already exists.
-    existing_coach = db.query(Coach).filter(
-        Coach.email == coach_data.email
-    ).first()
-
-    # 2) Stop if a coach already uses this email.
-    if existing_coach:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
-        )
-
-    # 3) Convert request data into a database model.
-    #    Important: store a HASH, not coach_data.password.
-    new_coach = Coach(
-        full_name=coach_data.full_name,
-        email=coach_data.email,
-        university=coach_data.university,
-        password_hash=hash_password(coach_data.password)
-    )
-
-    # 4) Stage the new object for insertion.
-    db.add(new_coach)
-
-    # 5) Commit the transaction to the database.
-    db.commit()
-
-    # 6) Reload generated DB values such as coach_id.
-    db.refresh(new_coach)
-
-    # 7) FastAPI uses CoachResponse to return safe fields only.
-    return new_coach
-```
-
-## 5. What does `Depends(get_db)` do?
-
-This line:
-
-```python
-db: Session = Depends(get_db)
-```
-
-asks FastAPI to provide a database session using our `get_db()` dependency.
-
-So the router does not create and close a database connection manually every time.
-
-## 6. Why `201 Created`?
-
-Signup creates a new resource, so the endpoint explicitly returns:
-
-```python
-status_code=status.HTTP_201_CREATED
-```
-
-That is more descriptive than a generic `200 OK`.
-
-## 7. Register the router in `main.py`
-
-The router is imported:
-
-```python
-from app.routers.auth import router as auth_router
-```
-
-Then connected:
-
-```python
-app.include_router(auth_router)
-```
-
-Because the router has:
-
-```python
-prefix="/auth"
-```
-
-and the endpoint has:
-
-```python
-"/signup"
-```
-
-the final path is:
+Endpoint:
 
 ```text
 POST /auth/signup
 ```
 
-## 8. Signup request flow
+Flow:
 
 ```text
-Swagger / React
-     ↓
-POST /auth/signup
-     ↓
-CoachCreate validates body
-     ↓
-get_db gives SQLAlchemy Session
-     ↓
-Search Coach by email
-     ↓
- ┌───────────────┬────────────────────┐
- │ email exists  │ email does not exist
- │               │
- │ 400 response  │ hash password
- │               │
- └───────────────┴──────→ create Coach
-                           ↓
-                        db.add
-                           ↓
-                        db.commit
-                           ↓
-                        db.refresh
-                           ↓
-                     CoachResponse
-                           ↓
-                      201 Created
+CoachCreate validates request
+        ↓
+Check email uniqueness
+        ↓
+Hash password
+        ↓
+Create Coach ORM object
+        ↓
+db.add → db.commit → db.refresh
+        ↓
+CoachResponse
+        ↓
+201 Created
 ```
 
-## 9. Actual test result: duplicate email
+Duplicate email returns:
 
-After signup had already created the account, running the same request again returned:
+```text
+400 Bad Request
+```
 
 ```json
 {
@@ -303,225 +159,236 @@ After signup had already created the account, running the same request again ret
 }
 ```
 
-with:
+## Login
 
-```text
-400 Bad Request
-```
-
-This was expected behavior because the duplicate check was working.
-
-## 10. bcrypt compatibility problem
-
-Our environment originally showed:
-
-```text
-passlib 1.7.4
-bcrypt 5.0.0
-```
-
-The hashing code failed even when tested directly.
-
-We inspected versions:
-
-```powershell
-pip show passlib
-pip show bcrypt
-```
-
-Then tested hashing independently:
-
-```powershell
-python -c "from app.utils.security import hash_password; print(hash_password('Test1234'))"
-```
-
-The fix that worked was:
-
-```powershell
-pip uninstall bcrypt -y
-pip install bcrypt==4.0.1
-```
-
-After that, direct hashing worked.
-
-🧠 **Lesson:** not every authentication failure is caused by our endpoint code. Library compatibility can be the real problem.
-
-## 11. Login endpoint — implemented and verified
-
-We added a dedicated `CoachLogin` schema containing only:
-
-```python
-class CoachLogin(BaseModel):
-    email: EmailStr
-    password: str
-```
-
-Then we added:
+Endpoint:
 
 ```text
 POST /auth/login
 ```
 
-The login logic now:
-
-1. Finds the coach by email.
-2. Returns `401 Unauthorized` if the email is not found.
-3. Uses `verify_password(...)` to compare the entered password with the stored bcrypt hash.
-4. Returns `401 Unauthorized` if the password is wrong.
-5. Returns safe coach data when credentials are correct.
-
-Verified successful test:
+Flow:
 
 ```text
-POST /auth/login
-email: lina@test.com
-password: Test1234
-→ 200 OK
+email + password
+      ↓
+find coach by email
+      ↓
+verify_password()
+      ↓
+invalid → 401
+valid   → create JWT
+      ↓
+TokenResponse
 ```
 
-The response returned coach data and did **not** expose the password hash.
+The successful response is now:
 
-:::tip Important
-The current login proves the credentials are correct, but it does **not yet** keep the user authenticated between requests. JWT is the next step.
-:::
-
-## 12. JWT setup — started, not fully connected yet
-
-We began the JWT layer after verifying login.
-
-### Packages added for this stage
-
-```powershell
-pip install pyjwt python-dotenv
+```json
+{
+  "access_token": "eyJ...",
+  "token_type": "bearer"
+}
 ```
 
-### Why use `.env`?
+Invalid email or password returns the same generic message:
 
-The JWT signing key is a secret and should not be hard-coded into source files or committed to GitHub.
-
-The project now has a root-level:
-
-```text
-.env
+```json
+{
+  "detail": "Invalid email or password"
+}
 ```
 
-with variables shaped like:
+This avoids revealing whether a particular email exists.
+
+## JWT configuration
+
+Environment variables are loaded from the root `.env`:
 
 ```env
-SECRET_KEY=<private-random-value>
+SECRET_KEY=<private value>
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 ```
 
-The real `SECRET_KEY` must stay private.
+The real secret must never be placed in documentation or committed to GitHub.
 
-### Root `.gitignore`
-
-We created a project-level `.gitignore` and included:
+Root `.gitignore` includes:
 
 ```gitignore
-# Environment variables / secrets
 .env
-
-# Virtual environment
 venv/
-
-# Python cache
 __pycache__/
 *.pyc
-
-# Local database
 tactiki.db
 *.db
-
-# Misc
 .DS_Store
 ```
 
-This prevents secrets, the virtual environment, Python cache files, and the local SQLite database from being committed accidentally.
+## Creating the access token
 
-### `create_access_token()`
-
-We added the beginning of JWT creation to `app/utils/security.py`:
+Core function:
 
 ```python
-import os
-from datetime import datetime, timedelta, timezone
-
-import jwt
-from dotenv import load_dotenv
-
-load_dotenv()
-
-SECRET_KEY = os.getenv("SECRET_KEY")
-ALGORITHM = os.getenv("ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(
-    os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
-)
-
-
 def create_access_token(data: dict):
-    # Copy the payload so the caller's dictionary is not modified.
     to_encode = data.copy()
 
-    # Give the token a limited lifetime.
     expire = datetime.now(timezone.utc) + timedelta(
         minutes=ACCESS_TOKEN_EXPIRE_MINUTES
     )
 
-    # JWT standard expiration claim.
     to_encode.update({"exp": expire})
 
-    # Sign the token using our private secret key.
-    encoded_jwt = jwt.encode(
+    return jwt.encode(
         to_encode,
         SECRET_KEY,
         algorithm=ALGORITHM
     )
-
-    return encoded_jwt
 ```
 
-### Why an expiration time?
-
-An access token should not remain valid forever. The `exp` claim limits how long it can be used.
-
-### What should go inside the token?
-
-We plan to identify the coach using the standard JWT subject claim:
+Login stores the coach identity inside the standard subject claim:
 
 ```python
-{"sub": "1"}
+data={"sub": str(coach.coach_id)}
 ```
 
-Here, `sub` means **subject** — the identity the token represents.
+`sub` = **subject** = the identity represented by the token.
 
-:::warning Important security note
-A signed JWT is not a place for passwords or password hashes. Do not put `password`, `password_hash`, or other secrets in the token payload.
-:::
+## JWT is not encryption
 
-### Exact stopping point
+The JWT is a signed access token, not a password vault.
 
-The code for `create_access_token()` has been written, but we intentionally stopped **before verifying the token-generation command and before changing the login response to return a token**.
+Do not store these in its payload:
 
-The next command to run is:
-
-```powershell
-python -c "from app.utils.security import create_access_token; print(create_access_token({'sub': '1'}))"
+```text
+password
+password_hash
+SECRET_KEY
 ```
 
-If it succeeds, we should see a long JWT string beginning with something similar to `eyJ...`.
+The signature helps the backend detect tampering. The expiration limits how long the token is accepted.
 
-## 13. What is NOT implemented yet?
+## Decoding and validating JWT
 
-The following are still **next**:
+We added:
 
-- Verify `create_access_token()` from the terminal.
-- Change `POST /auth/login` to return `access_token` and `token_type`.
-- Add JWT decoding/validation.
-- Read the current coach from the token.
-- Add a protected `/auth/me` endpoint.
-- Use Swagger's **Authorize 🔒** flow.
-- Test missing, invalid, and expired tokens.
+```python
+def decode_access_token(token: str):
+    try:
+        return jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM]
+        )
+    except jwt.InvalidTokenError:
+        return None
+```
 
-We will mark these complete only after we implement and test them.
+This validates the signature and expiration during decoding.
+
+## `get_current_coach`
+
+File:
+
+```text
+app/dependencies/auth.py
+```
+
+We use:
+
+```python
+security = HTTPBearer()
+```
+
+Then the dependency:
+
+```text
+Authorization: Bearer <token>
+        ↓
+HTTPBearer extracts token
+        ↓
+decode_access_token()
+        ↓
+read payload['sub']
+        ↓
+convert to coach_id
+        ↓
+query Coach table
+        ↓
+return authenticated Coach object
+```
+
+If the token is invalid/expired, the subject is missing, or the coach cannot be found, the request is rejected.
+
+## First protected endpoint
+
+Endpoint:
+
+```text
+GET /auth/me
+```
+
+It uses:
+
+```python
+current_coach: Coach = Depends(get_current_coach)
+```
+
+Successful test returned the current coach from the JWT alone:
+
+```json
+{
+  "coach_id": 1,
+  "full_name": "Lina Test",
+  "email": "lina@test.com",
+  "university": "King Abdulaziz University"
+}
+```
+
+This proved that later protected requests do not need to resend email and password.
+
+## Swagger Authorize flow
+
+1. Run `POST /auth/login`.
+2. Copy only the `access_token` value.
+3. Press **Authorize 🔒** at the top of Swagger.
+4. Paste the token value only; Swagger adds the `Bearer` scheme.
+5. Authorize and close the dialog.
+6. Call protected endpoints.
+
+A protected request should show a header similar to:
+
+```text
+Authorization: Bearer eyJ...
+```
+
+If the request has no token, the response is:
+
+```text
+401 Unauthorized
+```
+
+```json
+{
+  "detail": "Not authenticated"
+}
+```
+
+## Why we needed authentication before Team/Player CRUD
+
+The JWT gives us `current_coach`.
+
+That lets later endpoints enforce ownership:
+
+```text
+Coach 1 → can operate on Coach 1 teams/players
+Coach 2 → cannot operate on Coach 1 teams/players
+```
+
+This is now used by Team and Player routes.
+
+## Authentication checkpoint
+
+The authentication milestone is complete for the current backend stage.
+
+Next authentication work will mostly be production hardening later, such as broader token edge-case tests, refresh/session policy if needed, and frontend token handling.
