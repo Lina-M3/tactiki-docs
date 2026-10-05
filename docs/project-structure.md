@@ -16,6 +16,10 @@ tactiki-backend/
 │   ├── main.py
 │   ├── database.py
 │   │
+│   ├── dependencies/
+│   │   ├── __init__.py
+│   │   └── auth.py
+│   │
 │   ├── models/
 │   │   ├── __init__.py
 │   │   ├── coach.py
@@ -27,19 +31,26 @@ tactiki-backend/
 │   │
 │   ├── schemas/
 │   │   ├── __init__.py
-│   │   └── coach.py
+│   │   ├── coach.py
+│   │   ├── team.py
+│   │   ├── player.py
+│   │   └── player_progress.py
 │   │
 │   ├── routers/
 │   │   ├── __init__.py
-│   │   └── auth.py
+│   │   ├── auth.py
+│   │   ├── team.py
+│   │   └── player.py
 │   │
 │   └── utils/
 │       ├── __init__.py
 │       └── security.py
 │
-├── venv/
+├── .env
+├── .gitignore
 ├── requirements.txt
-└── tactiki.db
+├── tactiki.db
+└── venv/
 ```
 
 ## Responsibility of each area
@@ -47,110 +58,141 @@ tactiki-backend/
 | File / folder | Responsibility |
 |---|---|
 | `app/main.py` | Creates FastAPI app, creates tables, registers routers |
-| `app/database.py` | Engine, sessions, Base, `get_db()` |
+| `app/database.py` | SQLAlchemy engine, sessions, Base, `get_db()` |
+| `app/dependencies/` | Reusable FastAPI dependencies such as `get_current_coach` |
 | `app/models/` | Database table definitions using SQLAlchemy ORM |
 | `app/schemas/` | Request/response shapes using Pydantic |
 | `app/routers/` | API endpoints grouped by feature |
-| `app/utils/` | Shared helpers such as password hashing |
+| `app/utils/` | Shared helpers such as hashing and JWT functions |
+| `.env` | Local/private configuration such as JWT secret |
+| `.gitignore` | Prevents secrets/local runtime files from being committed |
 | `tactiki.db` | Local SQLite database file |
 | `requirements.txt` | Python dependencies for reproducing the environment |
 
-## Model vs Schema — very important
+## Router map
 
-This distinction is easy to mix up:
+```text
+app/routers/auth.py
+  ├── POST /auth/signup
+  ├── POST /auth/login
+  └── GET  /auth/me
+
+app/routers/team.py
+  ├── POST   /teams
+  ├── GET    /teams
+  ├── GET    /teams/{team_id}
+  ├── PATCH  /teams/{team_id}
+  └── DELETE /teams/{team_id}
+
+app/routers/player.py
+  ├── POST   /teams/{team_id}/players
+  ├── GET    /teams/{team_id}/players
+  ├── GET    /teams/{team_id}/players/{player_id}
+  ├── PATCH  /teams/{team_id}/players/{player_id}
+  ├── DELETE /teams/{team_id}/players/{player_id}
+  └── GET    /teams/{team_id}/players/{player_id}/progress
+```
+
+## Model vs Schema
 
 ### SQLAlchemy Model
 
 Represents how data is stored in the **database**.
 
-Example:
-
 ```python
-class Coach(Base):
-    __tablename__ = "coaches"
-    ...
+class Player(Base):
+    __tablename__ = "players"
 ```
 
 ### Pydantic Schema
 
-Represents the shape of data entering or leaving the **API**.
-
-Example:
+Represents what data is accepted or returned by the **API**.
 
 ```python
-class CoachCreate(BaseModel):
-    full_name: str
-    email: EmailStr
-    university: str
-    password: str
+class PlayerCreate(BaseModel):
+    player_name: str
+    ...
 ```
 
 :::tip بالعربي
 **Model = شكل الجدول في قاعدة البيانات**  
-**Schema = شكل البيانات في الـ request أو response**
+**Schema = شكل البيانات في الـrequest أو response**
 :::
 
-This is why the signup request contains `password`, while the database model stores `password_hash`.
+## Why `dependencies/` exists now
+
+Authentication logic such as identifying the logged-in coach is needed by many routers.
+
+Instead of repeating JWT decoding inside every Team/Player endpoint, we created:
+
+```text
+app/dependencies/auth.py
+```
+
+with:
+
+```python
+get_current_coach()
+```
+
+Then protected endpoints can declare:
+
+```python
+current_coach: Coach = Depends(get_current_coach)
+```
+
+This keeps authorization logic reusable and consistent.
 
 ## Router vs Main
 
-`main.py` should stay focused on application setup.
+`main.py` stays focused on setup.
 
-Feature endpoints live in routers such as:
-
-```text
-app/routers/auth.py
-```
-
-and are connected to the main app with:
+Routers are imported and registered with lines such as:
 
 ```python
 app.include_router(auth_router)
+app.include_router(team_router)
+app.include_router(player_router)
 ```
 
-If we forget this line, the router file may exist but its endpoints will not appear in Swagger.
+If a router exists but is not included, its endpoints will not appear in Swagger.
 
-## Why all the `__init__.py` files?
+## Request mental model
 
-An `__init__.py` file helps Python treat a directory as a package that can be imported.
-
-For example:
-
-```python
-from app.models.coach import Coach
-```
-
-## What is `__pycache__`?
-
-Python may automatically create folders named:
+The backend now looks like:
 
 ```text
-__pycache__
+HTTP request
+   ↓
+Router
+   ↓
+Pydantic schema validates input
+   ↓
+Dependencies provide DB + current coach
+   ↓
+SQLAlchemy model/query
+   ↓
+SQLite
+   ↓
+Response schema
+   ↓
+JSON response
 ```
 
-They store compiled bytecode files such as `.pyc`.
-
-They are normal and **not part of the application design**.
-
-Later, we should keep them out of Git using a backend `.gitignore` entry:
+For protected routes there is an extra authentication path:
 
 ```text
-__pycache__/
-*.pyc
-venv/
+Bearer JWT
+   ↓
+get_current_coach
+   ↓
+Coach ORM object
+   ↓
+Team/Player ownership check
 ```
 
-## Mental model
+## `__init__.py` and `__pycache__`
 
-Think of the backend like this:
+`__init__.py` helps Python treat directories as importable packages.
 
-```text
-main.py
-  └── includes router
-        └── receives schema
-              └── works with model
-                    └── uses database session
-                          └── saves/reads database
-```
-
-🧠 If you can explain that chain clearly, you understand most of the backend architecture we have built so far.
+`__pycache__` is generated Python bytecode cache and is not part of our architecture. It is excluded through `.gitignore` together with `.pyc`, `venv`, `.env`, and the local database.
