@@ -25,7 +25,17 @@ const sidebars = {
     },
     {
       type: 'category',
-      label: '3. Quick Reference',
+      label: '3. Teams & Players',
+      collapsed: false,
+      items: [
+        'team-api',
+        'player-api',
+        'player-progress',
+      ],
+    },
+    {
+      type: 'category',
+      label: '4. Quick Reference',
       collapsed: false,
       items: [
         'commands-cheatsheet',
@@ -34,7 +44,7 @@ const sidebars = {
     },
     {
       type: 'category',
-      label: '4. Project Notebook',
+      label: '5. Project Notebook',
       collapsed: false,
       items: [
         'docs-site',
