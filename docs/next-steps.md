@@ -5,93 +5,148 @@ title: Next Steps
 
 # Next Steps
 
-This page separates future work from completed work.
+This page separates completed work from future work.
 
-## Immediate next milestone — Finish JWT authentication
-
-The next authentication stage should complete this flow:
+## Completed backend foundation
 
 ```text
-Coach enters email + password
-        ↓
-Find coach by email
-        ↓
-Verify entered password against password_hash
-        ↓
-If correct → create access token
-        ↓
-Return token
-        ↓
-Use token for protected endpoints
+Authentication ✅
+JWT protected routes ✅
+Team CRUD ✅
+Player CRUD ✅
+Automatic OverallScore ✅
+PlayerProgress history ✅
 ```
 
-### Tasks we still need to implement
+## Immediate next milestone — Lineup API
+
+The database models already exist:
 
 ```text
-[x] password verification helper
-[x] login request schema
-[x] login endpoint
-[x] install JWT/config dependencies
-[x] write access token creation function
-[x] create .env configuration
-[x] create root .gitignore to protect secrets
-[ ] test access token creation directly
-[ ] make login return token response
-[ ] token validation dependency
-[ ] current coach extraction
-[ ] first protected endpoint (/auth/me)
-[ ] Swagger Authorization test
+Lineup
+LineupPlayer
 ```
 
-:::warning
-These are plans, not current implementation. We will add exact code only after we build and test it.
-:::
+The next goal is to expose them safely through protected APIs.
 
-## After authentication
-
-### Team CRUD
-
-Planned operations:
+### Planned Lineup work
 
 ```text
-Create team
-Get coach's teams
-Get one team
-Update team
-Delete team
+[ ] Create Lineup schemas
+[ ] Create Lineup router
+[ ] Create/save a lineup for an owned team
+[ ] Read saved lineups for a team
+[ ] Read one lineup
+[ ] Add players to saved lineup positions
+[ ] Validate players belong to the same team
+[ ] Prevent invalid duplicate assignments
+[ ] Preserve assigned_position per lineup-player pair
+[ ] Test LineupPlayer history
 ```
 
-The authenticated coach should eventually only operate on data that belongs to that coach.
+## Why Lineup comes next
 
-### Player CRUD
-
-Planned operations:
+Lineup is now the missing connection between:
 
 ```text
-Create player
-List players for a team
-Get player
-Update player
-Delete/deactivate player
+Team
+ ↓
+Players
+ ↓
+Lineup / LineupPlayer
 ```
 
-Player input will include the six football attributes already represented in the Player model.
+It also lets us fully verify the Player deletion rule:
 
-## Later backend milestones
+```text
+Player has lineup history
+→ do not permanently delete
+→ set is_active = False
+```
 
-- Player progress records.
-- Substitute recommendation flow.
-- AI lineup generation.
-- Save/retrieve generated lineups.
-- React ↔ FastAPI integration.
-- Broader testing.
+## After basic Lineup CRUD
 
-## AI roadmap reminder
+The next stage should move toward the project intelligence features.
 
-The project roadmap includes:
+### Substitute recommendation
 
-- **K-Means** for grouping/role-related player analysis.
-- **Cosine Similarity** for substitute/player similarity.
-- **Genetic Algorithm** for optimized lineup generation.
+Planned use of:
 
-We will document the actual datasets, feature preparation, functions, endpoints, and test results only when those components are implemented.
+```text
+Cosine Similarity
+```
+
+Player skill vectors use:
+
+```text
+Speed
+Passing
+Shooting
+Defending
+Stamina
+Dribbling
+```
+
+### Position analysis
+
+Roadmap includes:
+
+```text
+K-Means clustering
+```
+
+for grouping similar skill profiles / role analysis.
+
+### Optimized lineup
+
+Roadmap includes:
+
+```text
+Genetic Algorithm
+```
+
+for searching lineup combinations under formation/position constraints.
+
+## Frontend stage later
+
+After stable backend endpoints:
+
+```text
+React login form
+JWT storage/handling
+Team management screens
+Player management screens
+Progress visualization
+Lineup generation UI
+Substitute recommendation UI
+```
+
+## Testing/hardening later
+
+- Broader authentication edge cases.
+- Data validation ranges for skill ratings/height/weight.
+- Database migration strategy instead of relying only on `create_all`.
+- Production database decision.
+- CORS configuration for React.
+- Automated tests.
+- Better error handling/transaction rollback.
+
+## Important current design decisions to revisit if needed
+
+### OverallScore formula
+
+Current implementation:
+
+```text
+simple average of six skill ratings
+```
+
+The report says the field is calculated but does not define the exact formula. If the project team/dataset later defines weighted scoring, replace the helper in one place.
+
+### UTC progress timestamps
+
+Database currently stores progress `last_update` using UTC-style timestamps. Frontend can convert them to Saudi/local display time.
+
+## Next session starting point
+
+> Start with **Lineup schemas and router**, while preserving the same authorization pattern already used for Team and Player endpoints.
