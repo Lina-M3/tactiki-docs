@@ -5,13 +5,18 @@ title: Testing & Swagger
 
 # Testing & Swagger
 
-We use Swagger to test the backend independently before React depends on it.
+We use Swagger to test the backend independently before frontend integration.
 
 ## Open Swagger
 
-Start the backend:
+Start the backend from:
+
+```text
+C:\Users\ACER\tactiki\backend
+```
 
 ```powershell
+.\venv\Scripts\Activate.ps1
 uvicorn app.main:app --reload
 ```
 
@@ -25,7 +30,7 @@ http://127.0.0.1:8000/docs
 
 If an endpoint fails in Swagger, the problem is probably in the backend/API layer.
 
-If it works in Swagger but later fails from React, we can investigate frontend integration separately.
+If it works in Swagger but later fails from the frontend, we can investigate integration separately.
 
 ## Authentication testing
 
@@ -35,23 +40,8 @@ If it works in Swagger but later fails from React, we can investigate frontend i
 POST /auth/signup
 ```
 
-Fresh email → expected:
-
-```text
-201 Created
-```
-
-Repeated email → expected:
-
-```text
-400 Bad Request
-```
-
-```json
-{
-  "detail": "Email already registered"
-}
-```
+Fresh email → `201 Created`.
+Repeated email → `400 Bad Request` with `Email already registered`.
 
 ### Login
 
@@ -59,7 +49,7 @@ Repeated email → expected:
 POST /auth/login
 ```
 
-Successful login now returns:
+Successful login returns:
 
 ```json
 {
@@ -68,155 +58,68 @@ Successful login now returns:
 }
 ```
 
-Wrong password → expected:
-
-```text
-401 Unauthorized
-```
-
-```json
-{
-  "detail": "Invalid email or password"
-}
-```
+Wrong password → `401 Unauthorized`.
 
 ## Swagger Authorize 🔒
 
-Protected endpoints require the JWT.
-
-Steps:
-
 ```text
-1. Run POST /auth/login
+1. POST /auth/login
 2. Copy access_token only
 3. Click Authorize 🔒
-4. Paste the token value
+4. Paste token
 5. Authorize
-6. Close
-7. Execute protected endpoint
+6. Execute protected endpoints
 ```
 
-The outgoing request should contain:
+Protected request header:
 
 ```text
 Authorization: Bearer eyJ...
 ```
 
-If Swagger lost authorization, a protected route returns:
+If Swagger loses the token, protected routes may return:
 
 ```text
-401 Unauthorized
+401 Not authenticated
 ```
 
-```json
-{
-  "detail": "Not authenticated"
-}
-```
-
-We saw this when testing `POST /teams`; logging in and authorizing again fixed it.
-
-## `/auth/me` test
+Quick token check:
 
 ```text
 GET /auth/me
 ```
 
-Expected:
-
-```text
-200 OK
-```
-
-and current-coach data. This is our quick test that the token still works.
-
 ## Team tests
 
-### Create
-
 ```text
-POST /teams
-```
-
-Example:
-
-```json
-{
-  "team_name": "Tactiki FC",
-  "university": "King Abdulaziz University"
-}
-```
-
-Expected:
-
-```text
-201 Created
-```
-
-The returned `coach_id` should come from the JWT, not the request body.
-
-### Duplicate name
-
-Executing the same team name for the same coach should now return:
-
-```text
-400 Bad Request
-```
-
-```json
-{
-  "detail": "Team name already exists"
-}
-```
-
-### List teams
-
-```text
-GET /teams
-```
-
-Expected response is a JSON **list**, so it starts with `[` and ends with `]`.
-
-### Read one
-
-```text
-GET /teams/{team_id}
-```
-
-Known owned team → `200`.
-Unknown/not-owned team → `404 Team not found`.
-
-### Update
-
-```text
-PATCH /teams/{team_id}
-```
-
-Example partial body:
-
-```json
-{
-  "team_name": "Tactiki United"
-}
-```
-
-### Delete
-
-```text
+POST   /teams
+GET    /teams
+GET    /teams/{team_id}
+PATCH  /teams/{team_id}
 DELETE /teams/{team_id}
 ```
 
-We used this to clean duplicate test teams created before the duplicate-name rule was added.
+Important verified behaviors:
+
+- create returns `201`;
+- coach ID comes from authentication, not request body;
+- duplicate team name for same coach returns `400`;
+- GET list returns JSON `[]`;
+- unknown/not-owned team returns `404`;
+- PATCH supports partial updates.
 
 ## Player tests
 
-### Add player
-
 ```text
-POST /teams/{team_id}/players
+POST   /teams/{team_id}/players
+GET    /teams/{team_id}/players
+GET    /teams/{team_id}/players/{player_id}
+PATCH  /teams/{team_id}/players/{player_id}
+DELETE /teams/{team_id}/players/{player_id}
+GET    /teams/{team_id}/players/{player_id}/progress
 ```
 
-Example:
+Create example:
 
 ```json
 {
@@ -233,107 +136,152 @@ Example:
 }
 ```
 
-Expected:
+Verified behaviors:
+
+- `overall_score` is calculated by backend;
+- duplicate player name inside same team returns `400`;
+- skill PATCH recalculates overall score;
+- skill PATCH creates PlayerProgress row;
+- progress endpoint returns historical list.
+
+## Lineup tests
+
+### Create lineup
+
+```text
+POST /teams/{team_id}/lineups
+```
+
+Verified example:
+
+```json
+{
+  "formation": "4-3-3",
+  "players": [
+    {
+      "player_id": 1,
+      "assigned_position": "CM"
+    }
+  ]
+}
+```
+
+Observed result:
 
 ```text
 201 Created
 ```
 
-`overall_score` is calculated by the backend and returned in the response.
-
-### Duplicate player
-
-Same name inside the same team → expected:
+Response included:
 
 ```text
-400 Player already exists in this team
+lineup_id
+team_id
+formation
+create_date
+lineup_players[]
 ```
 
-### List players
+### Create validation rules
+
+Current code rejects:
 
 ```text
-GET /teams/{team_id}/players
+team not owned by current coach
+empty player list
+duplicate player_id in same lineup
+player not found in same team
+inactive player
 ```
 
-Returns a list.
-
-### Get one player
+### List saved lineups
 
 ```text
-GET /teams/{team_id}/players/{player_id}
+GET /teams/{team_id}/lineups
 ```
 
-Unknown player → `404 Player not found`.
+Returns a JSON list ordered newest first.
 
-### Update skills
+### Read one lineup
 
 ```text
-PATCH /teams/{team_id}/players/{player_id}
+GET /teams/{team_id}/lineups/{lineup_id}
 ```
 
-Example:
+Known nested lineup → `200`.
+Unknown/wrong-team lineup → `404 Lineup not found`.
+
+### Update lineup
+
+```text
+PATCH /teams/{team_id}/lineups/{lineup_id}
+```
+
+Formation-only test:
 
 ```json
 {
-  "speed": 90,
-  "stamina": 91
+  "formation": "4-2-3-1"
 }
 ```
 
-Expected:
+verified `200 OK`.
 
-- those fields change;
-- `overall_score` is recalculated automatically;
-- a progress record is created because a skill changed.
+If `players` is submitted, it replaces the complete current assignment list after validation.
 
-## Progress-history test
+### Delete lineup
 
 ```text
-GET /teams/{team_id}/players/{player_id}/progress
+DELETE /teams/{team_id}/lineups/{lineup_id}
 ```
 
-Expected response:
-
-```json
-[
-  {
-    "progress_id": 1,
-    "player_id": 1,
-    "previous_score": 82.83,
-    "current_score": 86.83,
-    "progress_status": "improved",
-    "last_update": "2026-10-01T06:38:03.217011"
-  }
-]
-```
-
-## Player delete/deactivate test
+Verified behavior:
 
 ```text
-DELETE /teams/{team_id}/players/{player_id}
+delete LineupPlayer rows
+→ delete Lineup row
+→ commit
 ```
 
-Current logic:
+After deletion, GET for that lineup should return `404`.
+
+## Player delete/deactivate test — next verification
+
+Player logic is:
 
 ```text
 no lineup history → permanent delete
 has lineup history → is_active = False
 ```
 
-The second branch will be fully testable after Lineup API creates `LineupPlayer` history.
+Now that the Lineup API can create real `LineupPlayer` records, the next test should be:
+
+```text
+1. Create/save a lineup containing a player.
+2. Confirm the LineupPlayer history exists through the saved lineup response.
+3. Call DELETE player.
+4. Verify player remains in DB/API state with is_active = false rather than being deleted.
+5. Verify historical saved lineup remains readable.
+```
+
+## Deliberate temporary Lineup testing choice
+
+Basic CRUD was tested with fewer than 11 players to verify relationships and API behavior first.
+
+This does **not** mean final football rules are complete. Exact starter count, goalkeeper, formation, and positional constraints remain roadmap items.
 
 ## Useful status codes
 
 | Status | Meaning in our work |
 |---|---|
-| `200` | Successful read/update/login |
+| `200` | Successful read/update/login/delete-with-body |
 | `201` | New resource created |
-| `204` | Successful delete with no body where used |
-| `400` | Business-rule validation such as duplicate email/team/player |
+| `204` | Successful delete with no response body where configured |
+| `400` | Business-rule validation |
 | `401` | Missing/invalid authentication |
-| `404` | Resource not found or not owned by current coach |
+| `404` | Resource missing or not accessible in requested ownership context |
 | `422` | Pydantic/request validation problem |
-| `500` | Server-side failure; inspect Uvicorn traceback |
+| `500` | Backend failure; inspect Uvicorn traceback |
 
 ## Testing habit
 
