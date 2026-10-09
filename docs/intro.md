@@ -1,14 +1,14 @@
 ---
 sidebar_position: 1
 title: Start Here
-description: Your living notebook for the Tactiki CPIT499 backend.
+description: Your living notebook for the Tactiki CPIT499 project.
 ---
 
 # Tactiki — Development Notebook
 
 > هذا الموقع مو تقرير رسمي فقط. اعتبريه **دفتر ملاحظات تقني حي** لمشروع Tactiki: ماذا عملنا؟ لماذا؟ أين الكود؟ كيف اختبرناه؟ وما الذي يجب أن أتذكره وقت المناقشة؟
 
-Tactiki is an AI-powered decision-support system for university football trainers. These notes currently focus on the FastAPI backend that will later connect to the React frontend and AI modules.
+Tactiki is an AI-powered decision-support system for university football trainers. The project now has a shared application repository for backend/frontend collaboration and this separate documentation repository.
 
 ## How to read this notebook
 
@@ -25,6 +25,22 @@ Each page tries to answer:
 :::tip تذكري
 لا تحفظين الكود حرفيًا. افهمي **Request Flow** ومسؤولية كل ملف. إذا فهمتي ليش كل جزء موجود، تقدرين تشرحين المشروع حتى لو تغيرت بعض الأسطر لاحقًا.
 :::
+
+## Repository map
+
+Application code:
+
+```text
+Lina-M3/tactiki
+├── backend/
+└── frontend/   ← teammate work will live here
+```
+
+Documentation site:
+
+```text
+Lina-M3/tactiki-docs
+```
 
 ## Status legend
 
@@ -49,7 +65,8 @@ Each page tries to answer:
 | Password hashing | Passlib + bcrypt | Never store plain passwords |
 | Authentication | PyJWT + HTTPBearer | Signed access tokens + protected routes |
 | Config | python-dotenv | Loads private `.env` settings |
-| API testing | Swagger UI | Backend testing before React |
+| API testing | Swagger UI | Backend testing before frontend integration |
+| Source control | Git + GitHub | Shared code, branches, collaboration, history |
 
 ## Current stopping point
 
@@ -64,16 +81,20 @@ Player CRUD ✅
 Automatic OverallScore ✅
 Automatic PlayerProgress ✅
 Progress-history endpoint ✅
-Lineup models ✅
-Lineup API ⏭️ NEXT
-AI algorithms ⬜ later
-React integration ⬜ later
+Lineup CRUD ✅
+LineupPlayer assignments ✅
+Shared GitHub monorepo ✅
+Frontend repository area ✅ prepared
+Player delete/deactivate real-history test ⏭️ next verification
+AI algorithms ⬜
+Frontend ↔ backend integration ⬜
+Deployment/production hardening ⬜
 ```
 
 ## Big picture — current request flow
 
 ```text
-Swagger / future React
+Swagger / future Frontend
         ↓ HTTP request
 FastAPI Router
         ↓
@@ -81,7 +102,7 @@ Pydantic Schema
         ↓
 FastAPI Dependencies
    ├── get_db()
-   └── get_current_coach() for protected routes
+   └── get_current_coach()
         ↓
 SQLAlchemy ORM
         ↓
@@ -95,12 +116,6 @@ Client
 Authentication flow:
 
 ```text
-Signup
-  → validate data
-  → check duplicate email
-  → hash password
-  → save Coach
-
 Login
   → find Coach
   → verify password
@@ -111,33 +126,50 @@ Protected request
   → Bearer token
   → validate JWT
   → get current Coach
-  → verify data ownership
-  → run Team/Player operation
+  → verify ownership
+  → run Team / Player / Lineup operation
+```
+
+Lineup flow:
+
+```text
+Current Coach
+   ↓
+Owned Team
+   ↓
+Validate active team players
+   ↓
+Create Lineup
+   ↓
+Create LineupPlayer assignments
+   ↓
+Saved tactical history
 ```
 
 ## What is already worth demonstrating in a meeting?
 
-You can open Swagger and show this sequence:
+A strong Swagger demo is now:
 
 ```text
-POST /auth/signup
 POST /auth/login
 Authorize 🔒
 GET /auth/me
-POST /teams
 GET /teams
-POST /teams/{team_id}/players
+GET /teams/{team_id}/players
 PATCH /teams/{team_id}/players/{player_id}
 GET /teams/{team_id}/players/{player_id}/progress
+POST /teams/{team_id}/lineups
+GET /teams/{team_id}/lineups
+PATCH /teams/{team_id}/lineups/{lineup_id}
 ```
 
-That demonstration shows authentication, ownership, CRUD, calculated data, and historical progress tracking working together.
+This demonstrates authentication, ownership, CRUD, calculated performance, historical progress, and saved tactical lineups.
 
 ## Current design choices to remember
 
 ### OverallScore
 
-The report says it is calculated but does not define a formula. Current implementation uses the average of the six stored skill ratings and rounds to two decimals.
+The report says it is calculated but does not define a formula. Current implementation uses the average of the six skill ratings and rounds to two decimals.
 
 ### Player history
 
@@ -145,7 +177,11 @@ A skill update creates a `PlayerProgress` record containing old score, new score
 
 ### Player deletion
 
-If a player has saved-lineup history, the code preserves that record and deactivates the player instead of permanently deleting it.
+If a player has saved-lineup history, the code preserves the player and deactivates them instead of permanently deleting them. The real-history branch is the next verification now that LineupPlayer records can be created.
+
+### Lineup size
+
+Basic Lineup CRUD is verified. During API construction we temporarily allow fewer than 11 players so we can test the data model first. Formation/11-player tactical validation is still future work.
 
 ## Important rule for these notes
 
