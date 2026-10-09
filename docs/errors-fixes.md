@@ -11,15 +11,7 @@ The goal is not just to remember the fix. We want to remember **how we reasoned 
 
 ## Error 1 — Signup returned 500
 
-### What we saw
-
-Swagger returned:
-
-```text
-500 Internal Server Error
-```
-
-The traceback pointed into password hashing.
+Swagger returned `500 Internal Server Error` and the traceback pointed into password hashing.
 
 Installed versions at the time:
 
@@ -28,18 +20,14 @@ passlib 1.7.4
 bcrypt 5.0.0
 ```
 
-### Fix
+Fix:
 
 ```powershell
 pip uninstall bcrypt -y
 pip install bcrypt==4.0.1
 ```
 
-We verified hashing directly before retrying the API.
-
-### Lesson
-
-A traceback inside a dependency may be a **version compatibility** problem rather than endpoint logic.
+Lesson: a dependency traceback may be a version-compatibility problem rather than endpoint logic.
 
 ---
 
@@ -53,25 +41,17 @@ Response:
 }
 ```
 
-This was not a new crash. The account had already been created, so the duplicate rule was working.
+This was intentional duplicate validation, not a crash.
 
-### Lesson
-
-A `4xx` may be intentional business validation. Always read the response body.
+Lesson: always read the status code **and response body** before deciding the backend is broken.
 
 ---
 
 ## Error 3 — PowerShell `Ctrl + C`
 
-Typing the literal text:
+Typing literal text `Ctrl + C` is not the same as pressing the keyboard shortcut.
 
-```text
-Ctrl + C
-```
-
-is not the same as pressing the keyboard shortcut.
-
-Correct action: hold **Ctrl** and press **C** to stop Uvicorn.
+Correct action: hold **Ctrl** and press **C**.
 
 ---
 
@@ -83,152 +63,230 @@ Uvicorn showed:
 SyntaxError: unmatched ')'
 ```
 
-in:
-
-```text
-app/routers/auth.py
-```
-
-After fixing the extra parenthesis, VS Code also showed:
+Then VS Code showed:
 
 ```text
 "return" can be used only within a function
 "coach" is not defined
 ```
 
-The JWT return block had the wrong indentation and had fallen outside `login()`.
+Root cause: token creation/return code had incorrect parentheses/indentation and fell outside `login()`.
 
-### Fix
-
-Move the token-creation and `return` block inside the function indentation.
-
-### Lesson
-
-Python structure depends on indentation. A block that visually looks close to a function can still be completely outside it.
+Lesson: Python indentation is structural, not cosmetic.
 
 ---
 
-## Error 5 — `POST /teams` returned 401 Not authenticated
+## Error 5 — Protected route returned 401
 
 Swagger showed:
 
 ```text
 401 Unauthorized
+Not authenticated
 ```
 
-```json
-{
-  "detail": "Not authenticated"
-}
-```
+The generated request did not contain an Authorization header.
 
-The generated Curl did not contain:
-
-```text
-Authorization: Bearer ...
-```
-
-### Root cause
-
-Swagger was no longer authorized with the JWT.
-
-### Fix
+Fix:
 
 ```text
 POST /auth/login
 → copy access_token
 → Authorize 🔒
 → paste token
-→ retry protected route
+→ retry route
 ```
 
-### Lesson
-
-If a protected endpoint suddenly returns 401, check the **Authorization header** before debugging database code.
+Lesson: check `Authorization: Bearer ...` before debugging database code.
 
 ---
 
 ## Error 6 — Repeated Execute kept creating teams
 
-We repeatedly executed:
+Repeated:
 
 ```text
 POST /teams
 ```
 
-and got team IDs 1, 2, 3, 4.
+created multiple rows.
 
-This was expected HTTP behavior: every successful POST was a new create request.
+This is correct HTTP behavior: POST means create.
 
-### What we changed
+Fixes:
 
-1. Used `DELETE /teams/{team_id}` to clean test duplicates.
-2. Added a rule preventing the same coach from creating the same `team_name` again.
-3. Used `GET /teams` when we only wanted to view existing teams.
-
-### Lesson
-
-```text
-POST = create
-GET  = read
-```
-
-Swagger's Execute button runs the endpoint; it is not just a preview button.
+1. Clean duplicate test rows with DELETE.
+2. Add duplicate-name business rule.
+3. Use GET when the intent is only to view data.
 
 ---
 
-## Error 7 — `GET /teams` code existed but did not appear in Swagger
+## Error 7 — GET route existed but did not appear in Swagger
 
-The route was present in `app/routers/team.py`, but Swagger still showed only POST.
+The code was present but the running app had not loaded it.
 
-### Fix
+Fix:
 
 ```text
 Ctrl+S
-restart/reload Uvicorn if needed
-Ctrl+F5 Swagger page
+verify StatReload / restart Uvicorn
+refresh Swagger
 ```
 
-After reload, `GET /teams` appeared.
-
-### Lesson
-
-If valid route code is missing from Swagger, first verify the file was saved and the running server loaded the newest code.
+Lesson: if valid route code is missing from Swagger, first verify save/reload state.
 
 ---
 
 ## Error 8 — Overall score stayed fixed after skill update
 
-We changed:
+Skill fields changed but `overall_score` remained old.
 
-```json
-{
-  "speed": 90,
-  "stamina": 91
-}
-```
+Root cause: it was initially treated as a normal client input field rather than a derived server value.
 
-but `overall_score` stayed at the old value.
-
-### Root cause
-
-At first, `overall_score` was treated like a normal input field. The PATCH endpoint only updated explicitly supplied fields, so there was no automatic recalculation.
-
-### Fix
-
-We moved responsibility to the backend:
+Fix:
 
 ```text
 OverallScore = average of six skills
 ```
 
-and removed `overall_score` from `PlayerCreate` and `PlayerUpdate` input schemas.
+and remove `overall_score` from Player create/update input schemas.
 
-Now the server recalculates it after skill changes.
+Lesson: derived values should usually be calculated in one trusted layer.
 
-### Lesson
+---
 
-Derived values should usually be calculated by one trusted layer instead of letting clients submit inconsistent values.
+## Error 9 — `requirements.txt` not found after creating the monorepo
+
+We created:
+
+```text
+C:\Users\ACER\tactiki\backend
+```
+
+but initially copied `app`, `.env`, `requirements.txt`, and `tactiki.db` into the **repository root** instead of `backend/`.
+
+Running:
+
+```powershell
+pip install -r requirements.txt
+```
+
+inside `backend` returned:
+
+```text
+No such file or directory: 'requirements.txt'
+```
+
+Fix: move backend files into:
+
+```text
+tactiki/backend/
+```
+
+After that, install dependencies from the correct folder.
+
+Lesson: command failures can be caused by the current working directory / project layout, not package problems.
+
+---
+
+## Error 10 — `.gitignore` did not ignore secrets
+
+The file had accidentally been named:
+
+```text
+gitignore
+```
+
+without the leading dot.
+
+Git therefore treated `.env`, DB, and venv as ordinary untracked files.
+
+Fix:
+
+```powershell
+Rename-Item gitignore .gitignore
+```
+
+Then verify with:
+
+```powershell
+git check-ignore -v backend/.env backend/tactiki.db backend/venv/
+```
+
+Lesson: `.gitignore` must have the exact filename including the dot.
+
+---
+
+## Error 11 — Git said `not a git repository`
+
+We ran Git commands while the terminal was in the old folder:
+
+```text
+C:\Users\ACER\tactiki-backend
+```
+
+instead of the cloned repository:
+
+```text
+C:\Users\ACER\tactiki
+```
+
+Fix:
+
+```powershell
+cd C:\Users\ACER\tactiki
+```
+
+Lesson: always check the prompt path before Git operations.
+
+---
+
+## Error 12 — Uvicorn terminal would not accept new commands
+
+After:
+
+```powershell
+uvicorn app.main:app --reload
+```
+
+it looked like the terminal was stuck.
+
+This is normal: the server process is running and waiting for requests.
+
+Current workflow:
+
+```text
+BACKEND SERVER → leave Uvicorn running
+TACTIKI - GIT  → use separate terminal for Git/other commands
+```
+
+Lesson: a running development server occupies its terminal by design.
+
+---
+
+## Error 13 — Branch already exists
+
+We ran:
+
+```powershell
+git switch -c backend/lineup-api
+```
+
+after the branch had already been created.
+
+Git returned:
+
+```text
+fatal: a branch named 'backend/lineup-api' already exists
+```
+
+Fix for an existing branch:
+
+```powershell
+git switch backend/lineup-api
+```
+
+Lesson: `-c` means **create** a new branch; omit it when switching to an existing branch.
 
 ---
 
@@ -236,13 +294,11 @@ Derived values should usually be calculated by one trusted layer instead of lett
 
 ### GitHub Pages deployment: missing lock file for npm cache
 
-The initial workflow enabled npm caching before a dependency lock file existed.
-
-We removed that cache setting for the first deployment.
+The initial workflow enabled npm caching before a dependency lock file existed. We removed that cache setting for the first deployment.
 
 ### GitHub Pages not enabled
 
-Docusaurus built successfully, but hosting configuration still failed.
+Docusaurus built successfully, but Pages hosting was not yet configured.
 
 Fix:
 
@@ -255,9 +311,7 @@ Repository
 → GitHub Actions
 ```
 
-### Lesson
-
-Build success and hosting configuration are separate layers.
+Lesson: application build success and hosting configuration are separate layers.
 
 ---
 
