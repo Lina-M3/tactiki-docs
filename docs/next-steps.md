@@ -1,93 +1,172 @@
 ---
 sidebar_position: 13
-title: Next Steps
+title: Roadmap & Next Steps
 ---
 
-# Next Steps
+# Roadmap & Next Steps
 
-This page separates completed work from future work.
+This page separates what is **finished**, what needs **verification/hardening**, and what is still **future work**.
 
-## Completed backend foundation
+## Phase 1 — Backend foundation ✅
 
 ```text
-Authentication ✅
-JWT protected routes ✅
-Team CRUD ✅
-Player CRUD ✅
+FastAPI app ✅
+Uvicorn ✅
+SQLite ✅
+SQLAlchemy ✅
+Pydantic schemas ✅
+Project structure ✅
+Swagger testing workflow ✅
+```
+
+## Phase 2 — Authentication & authorization ✅
+
+```text
+Coach signup ✅
+Password hashing ✅
+Duplicate-email protection ✅
+Login/password verification ✅
+JWT creation ✅
+JWT validation ✅
+Token expiration ✅
+get_current_coach() ✅
+GET /auth/me ✅
+Swagger Authorize 🔒 ✅
+Ownership checks ✅
+```
+
+## Phase 3 — Team management ✅
+
+```text
+Create team ✅
+List current coach teams ✅
+Read one team ✅
+Update team ✅
+Delete team ✅
+Duplicate-name prevention ✅
+Coach ownership protection ✅
+```
+
+## Phase 4 — Player management & progress ✅
+
+```text
+Create player ✅
+List team players ✅
+Read one player ✅
+Update player ✅
+Delete/deactivate logic ✅ implemented
+Duplicate player-name prevention ✅
 Automatic OverallScore ✅
-PlayerProgress history ✅
+Automatic PlayerProgress history ✅
+GET progress history ✅
 ```
 
-## Immediate next milestone — Lineup API
-
-The database models already exist:
+Current OverallScore implementation:
 
 ```text
-Lineup
-LineupPlayer
+(speed + passing + shooting + defending + stamina + dribbling) / 6
 ```
 
-The next goal is to expose them safely through protected APIs.
+This is an implementation decision because the report describes a calculated score but does not define the exact formula.
 
-### Planned Lineup work
+## Phase 5 — Saved Lineups ✅ basic CRUD
 
 ```text
-[ ] Create Lineup schemas
-[ ] Create Lineup router
-[ ] Create/save a lineup for an owned team
-[ ] Read saved lineups for a team
-[ ] Read one lineup
-[ ] Add players to saved lineup positions
-[ ] Validate players belong to the same team
-[ ] Prevent invalid duplicate assignments
-[ ] Preserve assigned_position per lineup-player pair
-[ ] Test LineupPlayer history
+Lineup schemas ✅
+Lineup router ✅
+POST create lineup ✅
+GET list lineups ✅
+GET one lineup ✅
+PATCH lineup ✅
+DELETE lineup ✅
+LineupPlayer assignments ✅
+Assigned position per saved lineup ✅
+Owned-team validation ✅
+Same-team player validation ✅
+Inactive-player rejection ✅
+Duplicate player_id prevention ✅
 ```
 
-## Why Lineup comes next
+Basic API CRUD is complete and verified in Swagger.
 
-Lineup is now the missing connection between:
+### Still needed around Lineups
 
 ```text
-Team
- ↓
-Players
- ↓
-Lineup / LineupPlayer
+[ ] Test player deactivation with real saved LineupPlayer history
+[ ] Decide final rule for exactly 11 starters
+[ ] Validate goalkeeper requirement if required
+[ ] Validate formation / position counts
+[ ] Decide allowed formation catalogue
+[ ] Decide whether archived lineups should be immutable or editable
 ```
 
-It also lets us fully verify the Player deletion rule:
+During early API verification, smaller lineups were intentionally allowed so we could validate the database relationships before enforcing tactical rules.
+
+## Phase 6 — GitHub collaboration ✅ foundation / 🟡 ongoing
+
+Main code repository:
 
 ```text
-Player has lineup history
-→ do not permanently delete
-→ set is_active = False
+Lina-M3/tactiki
 ```
 
-## After basic Lineup CRUD
+Structure:
 
-The next stage should move toward the project intelligence features.
+```text
+backend/
+frontend/
+```
 
-### Substitute recommendation
+Completed:
 
-Planned use of:
+```text
+Private repo ✅
+Teammate invited ✅
+Root .gitignore ✅
+Backend initial push ✅
+Feature-branch workflow ✅
+```
+
+Immediate Git task:
+
+```text
+[ ] Commit current Lineup code on backend/lineup-api
+[ ] Push branch
+[ ] Review/open Pull Request
+[ ] Merge stable Lineup work into main
+```
+
+Frontend teammate should work in `frontend/...` branches after accepting the repository invitation.
+
+## Phase 7 — Intelligence features ⬜
+
+This is the major next backend/product stage.
+
+### 7.1 Substitute recommendation
+
+Roadmap algorithm:
 
 ```text
 Cosine Similarity
 ```
 
-Player skill vectors use:
+Likely player feature vector:
 
 ```text
-Speed
-Passing
-Shooting
-Defending
-Stamina
-Dribbling
+[speed, passing, shooting, defending, stamina, dribbling]
 ```
 
-### Position analysis
+Before implementation we still need to define:
+
+```text
+which player is being replaced?
+should position be mandatory?
+which players are eligible?
+how many recommendations?
+how is similarity shown/explained?
+```
+
+### 7.2 Position / player profile analysis
 
 Roadmap includes:
 
@@ -95,9 +174,11 @@ Roadmap includes:
 K-Means clustering
 ```
 
-for grouping similar skill profiles / role analysis.
+Potential goal: group similar player skill profiles and support role/position analysis.
 
-### Optimized lineup
+We should not implement this blindly; first define the dataset, feature scaling, cluster meaning, and how the result is used in the application.
+
+### 7.3 Optimized lineup generation
 
 Roadmap includes:
 
@@ -105,48 +186,106 @@ Roadmap includes:
 Genetic Algorithm
 ```
 
-for searching lineup combinations under formation/position constraints.
-
-## Frontend stage later
-
-After stable backend endpoints:
+Before coding, define:
 
 ```text
-React login form
-JWT storage/handling
-Team management screens
-Player management screens
-Progress visualization
-Lineup generation UI
-Substitute recommendation UI
+formation constraints
+starter count
+position eligibility
+fitness function
+OverallScore / skill weights
+inactive-player exclusion
+whether previous lineups affect fitness
 ```
 
-## Testing/hardening later
+Output should eventually be saveable through the Lineup/LineupPlayer structure already implemented.
 
-- Broader authentication edge cases.
-- Data validation ranges for skill ratings/height/weight.
-- Database migration strategy instead of relying only on `create_all`.
-- Production database decision.
-- CORS configuration for React.
-- Automated tests.
-- Better error handling/transaction rollback.
+## Phase 8 — Frontend integration ⬜
 
-## Important current design decisions to revisit if needed
+The frontend and backend do **not** connect because they share a repository; they connect through HTTP requests.
 
-### OverallScore formula
-
-Current implementation:
+Planned work:
 
 ```text
-simple average of six skill ratings
+[ ] Confirm teammate's frontend framework/tools
+[ ] Create frontend folder/project in shared repo
+[ ] Agree API service structure
+[ ] Add frontend .env API base URL
+[ ] Configure FastAPI CORS
+[ ] Connect login to POST /auth/login
+[ ] Handle JWT on protected requests
+[ ] Team screens
+[ ] Player screens
+[ ] Progress visualization
+[ ] Saved Lineup screens
+[ ] AI lineup/recommendation screens
 ```
 
-The report says the field is calculated but does not define the exact formula. If the project team/dataset later defines weighted scoring, replace the helper in one place.
+During development, each teammate can run the backend locally from the shared repository. Later, a deployed backend can provide one shared API URL.
 
-### UTC progress timestamps
+## Phase 9 — Validation, testing & hardening ⬜
 
-Database currently stores progress `last_update` using UTC-style timestamps. Frontend can convert them to Saudi/local display time.
+Current manual Swagger testing is strong for development, but the project still needs broader quality work:
 
-## Next session starting point
+```text
+[ ] Pydantic ranges for skill values
+[ ] Validate positive height/weight
+[ ] Validate non-empty trimmed names/positions
+[ ] Better transaction rollback on failures
+[ ] Automated API tests
+[ ] Authentication edge-case tests
+[ ] Cross-coach authorization tests
+[ ] Lineup constraint tests
+[ ] AI algorithm tests/evaluation
+[ ] Frontend integration tests
+```
 
-> Start with **Lineup schemas and router**, while preserving the same authorization pattern already used for Team and Player endpoints.
+## Phase 10 — Database & deployment ⬜
+
+Before final delivery:
+
+```text
+[ ] Decide production database
+[ ] Add migration strategy (for example Alembic) if needed
+[ ] Deploy backend
+[ ] Deploy frontend
+[ ] Secure production environment variables
+[ ] Configure production CORS
+[ ] Confirm HTTPS/API URL
+[ ] Final end-to-end testing
+```
+
+## Phase 11 — Final project preparation ⬜
+
+```text
+[ ] Update report to match final implementation
+[ ] Final architecture diagrams
+[ ] Final class/data diagrams if changed
+[ ] API/demo scenario
+[ ] Defense questions
+[ ] Screenshots/results
+[ ] README setup instructions
+[ ] Clean GitHub repositories
+[ ] Final documentation-site review
+```
+
+## Immediate next actions
+
+The recommended order from our current checkpoint is:
+
+```text
+1. Save Lineup work to Git branch / PR
+2. Verify delete-player deactivation with real lineup history
+3. Finalize tactical Lineup rules
+4. Define substitute recommendation requirements
+5. Implement/evaluate Cosine Similarity feature
+6. Define AI lineup fitness/constraints
+7. Implement Genetic Algorithm generation
+8. Coordinate frontend API integration in parallel
+9. Add automated tests + deployment
+10. Final report/demo/defense preparation
+```
+
+:::warning Keep implementation and roadmap separate
+Only mark a feature ✅ after it has actually been coded and tested. Algorithm names from the project plan are not the same thing as a finished AI feature.
+:::
