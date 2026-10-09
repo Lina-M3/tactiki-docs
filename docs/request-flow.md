@@ -52,10 +52,8 @@ access_token + bearer
 
 ## Protected request flow
 
-This is now implemented:
-
 ```text
-Swagger / future React client
+Swagger / future frontend
       ↓
 Authorization: Bearer <JWT>
       ↓
@@ -72,13 +70,11 @@ query Coach
 protected endpoint continues
 ```
 
-The first proof was:
+Quick proof:
 
 ```text
 GET /auth/me
 ```
-
-which returned the current coach from the token.
 
 ## Team creation flow
 
@@ -89,9 +85,9 @@ JWT → current_coach
    ↓
 TeamCreate validates team_name + university
    ↓
-Check same coach does not already have same team name
+check duplicate team name for same coach
    ↓
-Create Team with coach_id = current_coach.coach_id
+create Team with coach_id = current_coach.coach_id
    ↓
 commit
    ↓
@@ -114,8 +110,6 @@ AND coach_id matches current coach
 return Team
 or 404
 ```
-
-That second condition is the authorization check.
 
 ## Player creation flow
 
@@ -183,6 +177,108 @@ order by last_update ascending
 return timeline list
 ```
 
+## Create Lineup flow
+
+```text
+POST /teams/{team_id}/lineups
+      ↓
+JWT → current coach
+      ↓
+verify team ownership
+      ↓
+LineupCreate validates formation + players[]
+      ↓
+player list must not be empty
+      ↓
+prevent duplicate player_id
+      ↓
+for each player:
+  verify belongs to same team
+  verify is_active = True
+      ↓
+create Lineup row
+      ↓
+db.flush()
+      ↓
+obtain generated lineup_id
+      ↓
+create LineupPlayer rows
+with assigned_position
+      ↓
+db.commit()
+      ↓
+LineupResponse
+```
+
+## Why Lineup uses `flush()` before `commit()`
+
+The child `LineupPlayer` rows need the new `lineup_id`.
+
+```text
+flush  → make pending Lineup insert/ID available
+commit → finalize Lineup + assignment rows together
+```
+
+## Read Lineups flow
+
+List:
+
+```text
+GET /teams/{team_id}/lineups
+→ verify owned team
+→ query Lineup by team_id
+→ newest first
+→ return list
+```
+
+Read one:
+
+```text
+GET /teams/{team_id}/lineups/{lineup_id}
+→ verify owned team
+→ verify lineup_id + team_id match
+→ return lineup
+or 404
+```
+
+## Update Lineup flow
+
+```text
+PATCH /teams/{team_id}/lineups/{lineup_id}
+      ↓
+verify team + lineup
+      ↓
+formation provided? → update it
+      ↓
+players provided?
+   ┌───────────┴───────────┐
+   No                      Yes
+   │                        │
+keep assignments      validate complete new list
+                            ↓
+                     delete old assignments
+                            ↓
+                     add new assignments
+                            ↓
+                          commit
+```
+
+Current rule: when `players` is sent in PATCH, that list becomes the complete replacement assignment list.
+
+## Delete Lineup flow
+
+```text
+DELETE /teams/{team_id}/lineups/{lineup_id}
+      ↓
+verify ownership/context
+      ↓
+delete LineupPlayer rows
+      ↓
+delete Lineup row
+      ↓
+commit
+```
+
 ## Player deletion decision flow
 
 ```text
@@ -198,7 +294,7 @@ permanent delete              is_active = False
                                preserve history
 ```
 
-The history branch will become fully testable after saved lineups are implemented.
+The code path exists. Now that saved LineupPlayer records can be created, the remaining task is to run the real-history deactivation test end-to-end.
 
 ## Main mental model
 
