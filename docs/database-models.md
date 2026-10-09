@@ -5,14 +5,14 @@ title: Database & Models
 
 # Database & Models
 
-This section explains the current database layer and how it is now used by implemented APIs.
+This section explains the current database layer and how it is used by the implemented APIs.
 
 ## 1. Database configuration
 
 File:
 
 ```text
-app/database.py
+backend/app/database.py
 ```
 
 ```python
@@ -51,7 +51,8 @@ Examples:
 
 ```python
 db.query(Coach)
-db.add(new_team)
+db.add(new_lineup)
+db.flush()
 db.commit()
 db.refresh(player)
 db.delete(team)
@@ -81,13 +82,9 @@ university
 password_hash
 ```
 
-Key points:
-
 - `email` is unique and indexed.
-- the plain password is never stored;
-- `teams` is a one-to-many ORM relationship.
-
-Relationship:
+- the plain password is never stored.
+- one Coach can own many Teams.
 
 ```text
 Coach 1 ───── many Team
@@ -104,16 +101,6 @@ team_name
 university
 ```
 
-Foreign key:
-
-```python
-coach_id = Column(
-    Integer,
-    ForeignKey("coaches.coach_id"),
-    nullable=False
-)
-```
-
 Relationships:
 
 ```text
@@ -122,7 +109,7 @@ Team → Players
 Team → Lineups
 ```
 
-The Team API is now implemented and every Team query is constrained by the authenticated coach.
+The Team API is implemented and protected by authenticated-coach ownership checks.
 
 ## 6. Player
 
@@ -158,24 +145,16 @@ Dribbling
 
 ### `overall_score`
 
-The report describes this as a calculated overall performance score.
-
-Current implementation decision:
-
-```text
-OverallScore = average of the six skill ratings
-```
-
-Formula:
+Current implementation:
 
 ```text
 (speed + passing + shooting + defending + stamina + dribbling) / 6
 ```
 
-The user no longer sends `overall_score` in create/update requests. The backend calculates it automatically.
+The API client does not submit `overall_score`; the backend calculates it and rounds to two decimals.
 
 :::note
-The report does not define the exact mathematical formula, so the simple six-skill average is our current implementation choice and can later be replaced by a weighted formula if required.
+The project report describes OverallScore as calculated but does not define the exact mathematical formula. The simple average is our current implementation decision and can later be replaced by a weighted formula if project requirements define one.
 :::
 
 Relationships:
@@ -205,9 +184,7 @@ Relationship:
 Player 1 ───── many PlayerProgress
 ```
 
-Progress records are now created automatically when player skill ratings change.
-
-Current status logic:
+Progress records are created automatically when one of the six skill ratings changes.
 
 ```text
 new > old  → improved
@@ -215,19 +192,13 @@ new < old  → declined
 new = old  → stable
 ```
 
-Changing only name/position/height/weight/activity does not create a false progress record.
+Changing only name, position, height, weight, or activity does not create a performance-change record.
 
-`last_update` currently uses:
-
-```python
-datetime.utcnow
-```
-
-and is returned by the API in an ISO-style datetime string.
+`last_update` currently uses `datetime.utcnow` and is returned as an ISO-style datetime string.
 
 ## 8. Lineup
 
-Fields include:
+Fields:
 
 ```text
 lineup_id
@@ -242,11 +213,13 @@ Relationship:
 Team 1 ───── many Lineup
 ```
 
-The database model is ready; Lineup API implementation is the next major milestone.
+The Lineup model is now actively used by the implemented Lineup CRUD API.
+
+A saved lineup belongs to one team and can contain several player assignments through `LineupPlayer`.
 
 ## 9. LineupPlayer
 
-This associative model connects players to lineups:
+Associative model:
 
 ```text
 lineup_id
@@ -260,23 +233,62 @@ Both IDs form a composite primary key:
 (lineup_id, player_id)
 ```
 
-This models the many-to-many history between Player and Lineup while storing the assigned position for that specific lineup.
+This prevents the same player from having two rows for the same saved lineup at the database-key level and lets each lineup store its own assigned position for the player.
 
-## 10. Why LineupPlayer already matters before Lineup CRUD
-
-Player deletion logic now checks this table.
+Relationship idea:
 
 ```text
-Player has no LineupPlayer record
-    → safe to delete permanently
-
-Player has LineupPlayer history
-    → keep record and set is_active = False
+Lineup 1 ── many LineupPlayer ── many Player
 ```
 
-This preserves historical saved lineups.
+## 10. Why `assigned_position` belongs in LineupPlayer
 
-## 11. ForeignKey vs relationship
+A player's normal position and a tactical assignment are not always the same.
+
+Example:
+
+```text
+Player.position = "CM"
+LineupPlayer.assigned_position = "CAM"
+```
+
+This means the same player can have different tactical assignments in different saved lineups without changing the player's base profile.
+
+## 11. Why Lineup creation uses `flush()`
+
+Creating a lineup needs the generated `lineup_id` before its `LineupPlayer` rows can be created.
+
+```python
+db.add(new_lineup)
+db.flush()
+```
+
+`flush()` sends pending SQL work and makes the generated ID available, but the transaction is not finalized yet.
+
+After adding all `LineupPlayer` rows:
+
+```python
+db.commit()
+```
+
+saves the full operation.
+
+## 12. Player deletion and history preservation
+
+Player deletion checks `LineupPlayer` history:
+
+```text
+No saved-lineup usage
+→ permanent delete
+
+Has saved-lineup usage
+→ keep Player row
+→ is_active = False
+```
+
+Now that Lineup creation is implemented, we can create real `LineupPlayer` history and perform the remaining end-to-end test of this deactivation branch.
+
+## 13. ForeignKey vs relationship
 
 ### ForeignKey
 
@@ -320,9 +332,10 @@ Coach model ✅
 Team model + CRUD ✅
 Player model + CRUD ✅
 Automatic OverallScore ✅
-PlayerProgress model + automatic history ✅
+PlayerProgress + automatic history ✅
 Progress history endpoint ✅
-Lineup model ✅ database only
-LineupPlayer model ✅ database only / deletion history check
-Lineup API ⏭️ next
+Lineup model + CRUD ✅
+LineupPlayer assignments ✅
+Lineup ownership/player validation ✅
+Player-deactivation-with-real-history test ⏭️ next verification
 ```
