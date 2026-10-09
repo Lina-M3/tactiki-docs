@@ -7,22 +7,32 @@ title: Commands Cheat Sheet
 
 هذه الصفحة مرجع سريع للأوامر والمسارات اللي نحتاجها كثير.
 
-## Activate environment
+## Main local paths
 
-```powershell
-.\venv\Scripts\Activate.ps1
+Project root:
+
+```text
+C:\Users\ACER\tactiki
 ```
 
-If PowerShell blocks activation for the current session:
+Backend:
+
+```text
+C:\Users\ACER\tactiki\backend
+```
+
+## `BACKEND SERVER` terminal
+
+```powershell
+cd C:\Users\ACER\tactiki\backend
+.\venv\Scripts\Activate.ps1
+uvicorn app.main:app --reload
+```
+
+If PowerShell blocks activation:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
-```
-
-## Run backend
-
-```powershell
-uvicorn app.main:app --reload
 ```
 
 Swagger:
@@ -31,20 +41,88 @@ Swagger:
 http://127.0.0.1:8000/docs
 ```
 
-Stop Uvicorn:
+Stop Uvicorn by actually pressing:
 
 ```text
-Press Ctrl+C
+Ctrl+C
 ```
 
-## Core packages
+:::tip
+While Uvicorn is running, that terminal is intentionally busy. Use a second terminal for Git commands.
+:::
+
+## `TACTIKI - GIT` terminal
 
 ```powershell
-pip install fastapi uvicorn sqlalchemy
-pip install email-validator
-pip install "passlib[bcrypt]"
-pip install bcrypt==4.0.1
-pip install pyjwt python-dotenv
+cd C:\Users\ACER\tactiki
+```
+
+Check current state:
+
+```powershell
+git status
+```
+
+Start a new backend feature from latest main:
+
+```powershell
+git switch main
+git pull origin main
+git switch -c backend/feature-name
+```
+
+Return to an existing branch:
+
+```powershell
+git switch backend/lineup-api
+```
+
+Save completed backend feature:
+
+```powershell
+git status
+git add backend
+git commit -m "feat(backend): describe feature"
+git push -u origin branch-name
+```
+
+Then open a Pull Request to `main`.
+
+## Git ignore verification
+
+```powershell
+git check-ignore -v backend/.env backend/tactiki.db backend/venv/
+```
+
+Show every untracked source file:
+
+```powershell
+git status --untracked-files=all
+```
+
+Never commit:
+
+```text
+.env
+venv/
+*.db
+__pycache__/
+node_modules/
+build output
+```
+
+## Install backend dependencies
+
+From `backend/`:
+
+```powershell
+pip install -r requirements.txt
+```
+
+Refresh dependency lock-style snapshot:
+
+```powershell
+pip freeze > requirements.txt
 ```
 
 ## Package inspection
@@ -54,7 +132,6 @@ pip show passlib
 pip show bcrypt
 pip show PyJWT
 pip freeze
-pip freeze > requirements.txt
 ```
 
 ## Generate JWT secret
@@ -63,7 +140,7 @@ pip freeze > requirements.txt
 python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
-Put the result in `.env`. Never commit/share the real secret.
+Put the result in `backend/.env`. Never commit/share the real secret.
 
 ## Password helper test
 
@@ -88,13 +165,7 @@ POST /auth/login
 → Authorize
 ```
 
-Protected requests should contain:
-
-```text
-Authorization: Bearer eyJ...
-```
-
-Quick token/current-user test:
+Quick current-user test:
 
 ```text
 GET /auth/me
@@ -131,6 +202,16 @@ DELETE /teams/{team_id}/players/{player_id}
 GET    /teams/{team_id}/players/{player_id}/progress
 ```
 
+### Lineups
+
+```text
+POST   /teams/{team_id}/lineups
+GET    /teams/{team_id}/lineups
+GET    /teams/{team_id}/lineups/{lineup_id}
+PATCH  /teams/{team_id}/lineups/{lineup_id}
+DELETE /teams/{team_id}/lineups/{lineup_id}
+```
+
 ## HTTP memory trick
 
 ```text
@@ -142,50 +223,46 @@ DELETE = remove/deactivate
 
 ## Overall score formula
 
-Current implementation:
-
 ```text
 (speed + passing + shooting + defending + stamina + dribbling) / 6
 ```
 
 Rounded to 2 decimal places.
 
+## `flush()` vs `commit()`
+
+Used during Lineup creation:
+
+```text
+flush  = send pending DB work / obtain generated lineup_id
+commit = finalize the transaction
+```
+
 ## Useful status codes
 
 ```text
 200 = success
 201 = created
-204 = delete/no response body where configured
-400 = business rule failed (duplicate)
+204 = delete/no body where configured
+400 = business rule failed
 401 = auth missing/invalid
 404 = resource missing/not owned
 422 = request validation failed
-500 = backend error → inspect terminal traceback
-```
-
-## Root `.gitignore`
-
-```gitignore
-.env
-venv/
-__pycache__/
-*.pyc
-tactiki.db
-*.db
-.DS_Store
+500 = backend error → inspect Uvicorn traceback
 ```
 
 ## Debugging checklist
 
 ```text
-1. Is (venv) active?
-2. Is Uvicorn running?
-3. Did I save the file?
-4. Did the reload happen?
-5. Does /docs show the new route?
-6. Am I Authorized 🔒?
-7. What status code did I get?
-8. What does response body say?
-9. What does terminal traceback say?
+1. Am I in C:\Users\ACER\tactiki, not the old tactiki-backend folder?
+2. Is (venv) active in the backend terminal?
+3. Is Uvicorn running?
+4. Did I save the file?
+5. Did StatReload reload?
+6. Does /docs show the route?
+7. Am I Authorized 🔒?
+8. What status code/body did I get?
+9. What does the Uvicorn traceback say?
 10. Did I accidentally run POST when I only wanted GET?
+11. Am I on the correct Git feature branch?
 ```
