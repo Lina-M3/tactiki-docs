@@ -5,77 +5,97 @@ title: Project Setup
 
 # Project Setup
 
-This page records how the backend started from an empty folder until FastAPI was running successfully.
+This page records how the backend started and how its **current working location** differs from the original folder.
 
-## 1. Project folder
+## 1. Original backend folder
 
-The backend project folder is:
+The backend originally started in:
 
 ```text
-tactiki-backend
+C:\Users\ACER\tactiki-backend
 ```
 
-We opened this folder in VS Code and built the backend inside it.
+That folder was where the first FastAPI/database/authentication work was built.
 
-## 2. Create a virtual environment
+## 2. Current project location
 
-We created a Python virtual environment:
+The project was later moved into the shared GitHub monorepo:
+
+```text
+C:\Users\ACER\tactiki\backend
+```
+
+Current source-control repository:
+
+```text
+Lina-M3/tactiki
+```
+
+The old `tactiki-backend` folder should now be treated only as a temporary backup; new development belongs in the monorepo copy.
+
+## 3. Virtual environment
+
+Inside the current backend folder:
 
 ```powershell
+cd C:\Users\ACER\tactiki\backend
 python -m venv venv
 ```
 
-### Why?
-
-Without a virtual environment, Python packages may be installed globally and conflict with packages from other projects.
-
-With `venv`, Tactiki has its own isolated Python environment.
-
-:::tip تذكري
-إذا ظهر `(venv)` في بداية سطر PowerShell فهذا غالبًا يعني أن البيئة الافتراضية مفعلة.
-:::
-
-A typical activation command on Windows PowerShell is:
+Activate on Windows PowerShell:
 
 ```powershell
 .\venv\Scripts\Activate.ps1
 ```
 
-## 3. Install the initial backend packages
+If PowerShell blocks activation for that session:
 
-The first packages installed were:
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+```
+
+### Why use `venv`?
+
+It isolates Tactiki's Python dependencies from global packages and other projects.
+
+:::tip تذكري
+إذا ظهر `(venv)` في بداية سطر PowerShell فهذا يعني أن البيئة الافتراضية مفعلة.
+:::
+
+## 4. Install dependencies
+
+The backend started with:
 
 ```powershell
 pip install fastapi uvicorn sqlalchemy
 ```
 
-### What does each package do?
-
-| Package | Job |
-|---|---|
-| `fastapi` | Builds API routes and handles requests/responses |
-| `uvicorn` | Runs the FastAPI application |
-| `sqlalchemy` | Connects Python objects to the database |
-
-Later, authentication required additional packages such as:
+Authentication later added packages such as:
 
 ```powershell
 pip install email-validator
 pip install "passlib[bcrypt]"
+pip install pyjwt python-dotenv
 ```
 
-We later pinned bcrypt to a compatible version:
+A Passlib/bcrypt compatibility issue was fixed with:
 
 ```powershell
 pip uninstall bcrypt -y
 pip install bcrypt==4.0.1
 ```
 
-## 4. First `main.py`
+In the monorepo, the normal reproducible setup is now:
 
-The first working FastAPI application was intentionally small:
+```powershell
+pip install -r requirements.txt
+```
 
-```python title="app/main.py — first working version"
+## 5. First `main.py`
+
+The first working FastAPI app was intentionally minimal:
+
+```python
 from fastapi import FastAPI
 
 app = FastAPI(
@@ -91,85 +111,89 @@ def root():
     }
 ```
 
-### Why begin with one simple endpoint?
+That small endpoint proved Python imports, FastAPI, Uvicorn, and browser access before database complexity was added.
 
-Because it proves several things at once:
+## 6. Run the current backend
 
-- Python can import the project.
-- FastAPI starts correctly.
-- Uvicorn can run the app.
-- The browser can reach the backend.
-- We have a known-good checkpoint before adding the database.
+From:
 
-## 5. Run the backend
+```text
+C:\Users\ACER\tactiki\backend
+```
+
+run:
 
 ```powershell
+.\venv\Scripts\Activate.ps1
 uvicorn app.main:app --reload
 ```
 
 Breakdown:
 
 ```text
-uvicorn       → run the ASGI server
-app.main      → open app/main.py as a Python module
-:app          → use the FastAPI object named "app"
---reload      → restart automatically when source files change
+uvicorn       → run ASGI server
+app.main      → import backend/app/main.py as module app.main
+:app          → use the FastAPI object named app
+--reload      → restart server when Python source changes
 ```
 
-:::warning
-To stop Uvicorn, **press Ctrl+C on the keyboard**. Do not type the literal words `Ctrl + C` into PowerShell.
-:::
+To stop it, actually press:
 
-## 6. Verify the root endpoint
-
-The root endpoint returned HTTP `200 OK` with:
-
-```json
-{
-  "message": "Tactiki Backend is running successfully"
-}
+```text
+Ctrl+C
 ```
 
-That was our first successful backend checkpoint.
+## 7. Swagger
 
-## 7. Open Swagger UI
-
-FastAPI generates interactive API documentation automatically.
-
-Local URL:
+Local Swagger UI:
 
 ```text
 http://127.0.0.1:8000/docs
 ```
 
-Swagger became our main way to test backend endpoints before connecting the React frontend.
+Swagger is our main manual backend-testing tool before frontend integration.
 
-## 8. Save dependencies
+## 8. Dependency snapshot
 
-We initially generated `requirements.txt` with:
-
-```powershell
-pip freeze > requirements.txt
-```
-
-⚠️ **Current reminder:** additional packages were installed later and bcrypt was downgraded after that first freeze.
-
-Before the next major checkpoint, run again:
+After authentication packages and the bcrypt fix, we refreshed the dependency file with:
 
 ```powershell
 pip freeze > requirements.txt
 ```
 
-This keeps the dependency file consistent with the environment that actually works.
+The new monorepo virtual environment was then successfully reconstructed using:
 
-## Checkpoint
+```powershell
+pip install -r requirements.txt
+```
 
-At the end of this stage:
+and Uvicorn started successfully from the new `tactiki/backend` location.
+
+## 9. Source-control safety
+
+The repository-root `.gitignore` excludes local/private files including:
 
 ```text
-FastAPI app ✅
-Uvicorn ✅
-Root endpoint ✅
-Swagger UI ✅
-Ready for database setup ✅
+backend/.env
+backend/venv/
+backend/tactiki.db
+__pycache__/
+*.pyc
+```
+
+and future frontend generated folders such as `node_modules` and build output.
+
+We explicitly verified ignored files before the first backend push.
+
+## Current checkpoint
+
+```text
+Original standalone backend ✅ migrated
+Shared tactiki monorepo ✅
+Fresh backend venv ✅
+requirements install ✅
+Uvicorn from new path ✅
+Swagger from new path ✅
+Initial backend GitHub push ✅
+Feature-branch workflow ✅
 ```
