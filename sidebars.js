@@ -4,11 +4,12 @@ const sidebars = {
     'intro',
     {
       type: 'category',
-      label: '1. Backend Foundation',
+      label: '1. Project Foundation',
       collapsed: false,
       items: [
         'project-setup',
         'project-structure',
+        'git-workflow',
         'database-models',
       ],
     },
@@ -25,12 +26,13 @@ const sidebars = {
     },
     {
       type: 'category',
-      label: '3. Teams & Players',
+      label: '3. Teams, Players & Lineups',
       collapsed: false,
       items: [
         'team-api',
         'player-api',
         'player-progress',
+        'lineup-api',
       ],
     },
     {
