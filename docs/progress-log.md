@@ -11,52 +11,20 @@ Use this page when we need to remember **exactly where development stopped**.
 
 | Area | Status | Notes |
 |---|---|---|
-| FastAPI / Uvicorn | ✅ | Backend starts successfully |
-| SQLite / SQLAlchemy | ✅ | Local development persistence |
-| Authentication | ✅ | Signup, login, JWT, `/auth/me` |
-| Authorization | ✅ | Coach ownership checks |
-| Team CRUD | ✅ | Complete |
+| Authentication / JWT | ✅ | Protected APIs |
+| Team CRUD | ✅ | Ownership protected |
 | Player CRUD | ✅ | Complete |
 | OverallScore | ✅ | Six-skill average |
-| PlayerProgress | ✅ | Automatic history |
-| Player delete history | ✅ Verified | Saved-lineup player becomes inactive instead of hard-deleted |
+| PlayerProgress | ✅ | Historical tracking |
+| Player delete history | ✅ | Deactivate when lineup history exists |
 | Lineup CRUD | ✅ | Complete |
-| Exactly 11 players | ✅ Verified | Final saved lineup rule |
-| Formation required | ✅ Verified | Empty formation rejected |
-| Substitute Recommendation | ✅ | Cosine Similarity feature |
-| Recommendation tests | ✅ | 38 tests passing |
-| K-Means Position Analysis | ⏭️ Next | Requirements being finalized |
-| Genetic Algorithm | ⬜ | After K-Means |
-| Frontend integration | ⬜ | Parallel/future work |
+| Exactly 11 players | ✅ | Final saved-lineup rule |
+| Substitute Recommendation | ✅ merged | Cosine Similarity |
+| Position Analysis | ✅ branch / ⏭️ merge | FIFA-reference K-Means revision |
+| Genetic Algorithm | ⬜ | Next major AI feature |
+| Frontend integration | ⬜ | Parallel/future |
 
-## Repository status
-
-```text
-Repository: Lina-M3/tactiki
-main: current stable code
-AGENTS.md: AI/repository implementation rules
-```
-
-Merged feature work:
-
-```text
-PR #1 — Lineup CRUD ✅
-PR #2 — Lineup rules ✅
-PR #3 — Substitute Recommendation ✅
-```
-
-## Current AI stack
-
-```text
-Python 3.13
-scikit-learn 1.9.1
-NumPy 2.5.4
-SciPy 1.18.1
-pytest 9.2.0
-httpx 0.28.1
-```
-
-## Implemented AI Feature 1
+## AI Feature 1 — Cosine Similarity
 
 Endpoint:
 
@@ -64,79 +32,117 @@ Endpoint:
 POST /teams/{team_id}/recommendations/substitute
 ```
 
-Flow:
+Current verified behavior:
 
 ```text
-JWT current coach
-→ verify owned team
-→ load selected unavailable player
-→ load active same-team candidates
-→ exclude selected player
-→ validate six-skill vectors
-→ cosine_similarity()
-→ round similarity
-→ deterministic descending ranking
-→ generate data-derived reason
-→ JSON response
+same-team active candidates
+inactive/unavailable target allowed
+canonical six-skill vector
+cosine_similarity()
+descending deterministic ranking
+data-derived reason
+read-only database behavior
 ```
 
-Canonical vector:
+The original feature baseline contains **38 passing tests**, and those tests remain green during later AI work.
+
+## AI Feature 2 — Position Analysis
+
+Endpoint:
 
 ```text
-[speed, passing, shooting, defending, stamina, dribbling]
+POST /teams/{team_id}/analysis/positions
 ```
 
-Important behavior:
+The original roster-relative implementation was merged in PR #4.
+
+After review, the design was strengthened before final adoption:
 
 ```text
-Selected target may be inactive ✅
-Candidate must be active ✅
-No same-position restriction ✅
-No database mutation ✅
-Incomplete candidates are excluded ✅
-Incomplete selected-player skills → 400 ✅
-No candidates → empty successful result ✅
+OLD
+team roster
+→ fit K-Means again
+→ team-relative centroids
+
+REVISED
+FIFA 23 reference data
+→ train K-Means once
+→ fixed centroids
+→ classify university outfield players
 ```
 
-Real Swagger test was completed successfully using local Test Player data.
-
-## Automated testing
-
-Recommendation work introduced isolated tests using an in-memory test database rather than `tactiki.db`.
-
-Final run:
+### Revised training result
 
 ```text
-38 passed
+16,467 valid FIFA 23 outfield profiles
+K = 3
+random_state = 42
+n_init = 10
 ```
 
-Coverage includes authentication, ownership, filtering, cosine math, stable ranking, response schema, read-only SQL behavior, and startup/OpenAPI smoke checks.
+Learned roles:
+
+```text
+Cluster 0 → Defender
+Cluster 1 → Attacker
+Cluster 2 → Midfielder
+```
+
+Goalkeepers:
+
+```text
+GK / Goalkeeper
+→ cluster_id = null
+→ recommended_role = Goalkeeper
+→ not compared with outfield centroids
+```
+
+### Revised verification
+
+```text
+102 backend tests ✅
+38 Cosine tests still pass ✅
+reverse-order suite ✅
+startup/OpenAPI checks ✅
+synthetic training tests ✅
+real FIFA reference artifact ✅
+SELECT-only runtime analysis ✅
+git diff --check ✅
+```
+
+Current branch revision commit:
+
+```text
+a1503a5
+feat(backend): add FIFA reference position analysis
+```
+
+It has been pushed to `backend/position-analysis` and still requires a follow-up PR into `main`.
 
 ## Current stopping point
 
-> **Core backend CRUD, final 11-player saved-lineup validation, player-history preservation, and Cosine Similarity substitute recommendations are complete. The next AI feature is K-Means Position Analysis.**
+> **The revised K-Means design is implemented and tested. Next Git action: merge the FIFA-reference follow-up revision. Next engineering stage after that: define Genetic Algorithm constraints before coding.**
 
-## Next checklist
+## Checklist
 
 ```text
 [x] Authentication + JWT
 [x] Team CRUD
 [x] Player CRUD
-[x] OverallScore
-[x] PlayerProgress
+[x] Progress history
 [x] Lineup CRUD
-[x] Exactly 11 saved-lineup rule
-[x] Player deactivation with real lineup history
-[x] Cosine Similarity substitute recommendations
-[x] Automated recommendation tests
-[x] PR #3 merged into main
-[ ] Define K-Means contract and role mapping
-[ ] Implement K-Means Position Analysis
-[ ] Add K-Means automated tests
-[ ] Swagger verify K-Means
-[ ] Define Genetic Algorithm fitness/constraints
+[x] 11-player rule
+[x] Cosine Similarity
+[x] K-Means initial implementation
+[x] Identify roster-relative limitation
+[x] Train fixed FIFA 23 reference centroids
+[x] Separate Goalkeeper from outfield clustering
+[x] 102-test revised verification
+[ ] Follow-up PR: FIFA-reference revision → main
+[ ] Define GA fitness / Synergy Score
+[ ] Define formation + goalkeeper constraints
 [ ] Implement Genetic Algorithm
-[ ] Frontend API integration
+[ ] Frontend integration
 [ ] Deployment
 [ ] Final report/demo/defense sync
 ```
