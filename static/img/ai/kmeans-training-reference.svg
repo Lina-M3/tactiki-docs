@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1250" height="720" viewBox="0 0 1250 720">
+  <rect width="1250" height="720" fill="#0d1424"/>
+  <text x="55" y="55" fill="#ffffff" font-size="31" font-family="Arial" font-weight="700">K-Means Reference Training — done offline once</text>
+  <g font-family="Arial" text-anchor="middle">
+    <rect x="60" y="115" width="225" height="100" rx="16" fill="#17253e" stroke="#69b8ff" stroke-width="2"/>
+    <text x="172" y="155" fill="#ffffff" font-size="21">FIFA 23 dataset</text><text x="172" y="185" fill="#a9c9e8" font-size="17">18k+ player records</text>
+    <rect x="335" y="100" width="250" height="130" rx="16" fill="#17253e" stroke="#7bd389" stroke-width="2"/>
+    <text x="460" y="137" fill="#ffffff" font-size="20">Filter training rows</text><text x="460" y="170" fill="#cdebd2" font-size="17">fifa_version = 23</text><text x="460" y="199" fill="#cdebd2" font-size="17">exclude GK</text>
+    <rect x="635" y="100" width="255" height="130" rx="16" fill="#17253e" stroke="#ffd166" stroke-width="2"/>
+    <text x="762" y="135" fill="#ffffff" font-size="20">Map six features</text><text x="762" y="168" fill="#ffe4a3" font-size="16">pace → speed</text><text x="762" y="194" fill="#ffe4a3" font-size="16">power_stamina → stamina</text>
+    <rect x="940" y="115" width="245" height="100" rx="16" fill="#17253e" stroke="#cf8cff" stroke-width="2"/>
+    <text x="1062" y="153" fill="#ffffff" font-size="20">KMeans(K=3)</text><text x="1062" y="184" fill="#e4c5ff" font-size="17">random_state=42</text>
+  </g>
+  <g stroke="#7f8fa8" stroke-width="3" fill="none">
+    <line x1="285" y1="165" x2="335" y2="165"/><polygon points="335,165 322,157 322,173" fill="#7f8fa8"/>
+    <line x1="585" y1="165" x2="635" y2="165"/><polygon points="635,165 622,157 622,173" fill="#7f8fa8"/>
+    <line x1="890" y1="165" x2="940" y2="165"/><polygon points="940,165 927,157 927,173" fill="#7f8fa8"/>
+  </g>
+  <text x="625" y="285" fill="#ffffff" font-size="24" font-family="Arial" text-anchor="middle" font-weight="700">16,467 valid FIFA 23 outfield profiles → 3 learned centroids</text>
+  <g font-family="Arial" text-anchor="middle">
+    <circle cx="245" cy="430" r="95" fill="#284d3a" stroke="#7bd389" stroke-width="3"/>
+    <text x="245" y="410" fill="#ffffff" font-size="22" font-weight="700">Cluster 0</text><text x="245" y="444" fill="#d8f3dc" font-size="20">Defender</text><text x="245" y="474" fill="#d8f3dc" font-size="16">higher defending profile</text>
+    <circle cx="625" cy="430" r="95" fill="#583b1c" stroke="#ffd166" stroke-width="3"/>
+    <text x="625" y="410" fill="#ffffff" font-size="22" font-weight="700">Cluster 1</text><text x="625" y="444" fill="#fff0c2" font-size="20">Attacker</text><text x="625" y="474" fill="#fff0c2" font-size="16">speed/shooting/dribbling</text>
+    <circle cx="1005" cy="430" r="95" fill="#3f315c" stroke="#cf8cff" stroke-width="3"/>
+    <text x="1005" y="410" fill="#ffffff" font-size="22" font-weight="700">Cluster 2</text><text x="1005" y="444" fill="#efddff" font-size="20">Midfielder</text><text x="1005" y="474" fill="#efddff" font-size="16">passing/stamina/dribbling</text>
+  </g>
+  <rect x="305" y="580" width="640" height="80" rx="16" fill="#17253e" stroke="#69b8ff"/>
+  <text x="625" y="612" fill="#ffffff" font-size="20" font-family="Arial" text-anchor="middle">Save only fixed centroids + metadata to position_reference.json</text>
+  <text x="625" y="641" fill="#a9c9e8" font-size="17" font-family="Arial" text-anchor="middle">The 90 MB raw FIFA CSV stays local and is ignored by Git.</text>
+</svg>
