@@ -6,183 +6,162 @@ description: Your living notebook for the Tactiki CPIT499 project.
 
 # Tactiki — Development Notebook
 
-> هذا الموقع مو تقرير رسمي فقط. اعتبريه **دفتر ملاحظات تقني حي** لمشروع Tactiki: ماذا عملنا؟ لماذا؟ أين الكود؟ كيف اختبرناه؟ وما الذي يجب أن أتذكره وقت المناقشة؟
+> هذا الموقع **دفتر ملاحظات تقني حي** لمشروع Tactiki: ماذا بنينا؟ لماذا؟ أين الكود؟ كيف اختبرناه؟ وما الذي يجب تذكره وقت المناقشة؟
 
-Tactiki is an AI-powered decision-support system for university football trainers. The project now has a shared application repository for backend/frontend collaboration and this separate documentation repository.
-
-## How to read this notebook
-
-Each page tries to answer:
-
-1. **What did we build?**
-2. **Why did we need it?**
-3. **Which file contains it?**
-4. **How does the code work?**
-5. **How did we test it?**
-6. **What went wrong and how did we fix it?**
-7. **What might I be asked in the defense?**
-
-:::tip تذكري
-لا تحفظين الكود حرفيًا. افهمي **Request Flow** ومسؤولية كل ملف. إذا فهمتي ليش كل جزء موجود، تقدرين تشرحين المشروع حتى لو تغيرت بعض الأسطر لاحقًا.
-:::
+Tactiki is an AI-powered decision-support system for university football coaches. The project uses a shared application repository and this separate documentation repository.
 
 ## Repository map
 
-Application code:
+Application:
 
 ```text
 Lina-M3/tactiki
+├── AGENTS.md
 ├── backend/
-└── frontend/   ← teammate work will live here
+└── frontend/
 ```
 
-Documentation site:
+Documentation:
 
 ```text
 Lina-M3/tactiki-docs
 ```
 
-## Status legend
-
-| Symbol | Meaning |
-|---|---|
-| ✅ | Implemented and/or verified |
-| 🟡 | Implemented but still being expanded/retested |
-| ⏭️ | Next planned step |
-| ⬜ | Not implemented yet |
-| 🧠 | Important idea to remember |
-| ⚠️ | Common mistake/debugging note |
-
 ## Current backend stack
 
-| Layer | Technology | Why it exists |
-|---|---|---|
-| API framework | FastAPI | Endpoints + OpenAPI/Swagger |
-| Development server | Uvicorn | Runs the ASGI app |
-| ORM | SQLAlchemy | Python models ↔ database tables |
-| Database | SQLite | Local development database |
-| Validation | Pydantic | Request/response validation |
-| Password hashing | Passlib + bcrypt | Never store plain passwords |
-| Authentication | PyJWT + HTTPBearer | Signed access tokens + protected routes |
-| Config | python-dotenv | Loads private `.env` settings |
-| API testing | Swagger UI | Backend testing before frontend integration |
-| Source control | Git + GitHub | Shared code, branches, collaboration, history |
+| Layer | Technology |
+|---|---|
+| API | FastAPI |
+| Server | Uvicorn |
+| ORM | SQLAlchemy |
+| Local DB | SQLite |
+| Validation | Pydantic |
+| Auth | JWT + HTTPBearer |
+| Passwords | Passlib + bcrypt |
+| AI/ML | scikit-learn + NumPy + SciPy |
+| Tests | pytest + httpx |
+| API testing | Swagger UI |
+| Source control | Git + GitHub |
 
-## Current stopping point
+## Current project status
 
 ```text
 Backend foundation ✅
-Database/models ✅
-Signup/login ✅
-JWT authentication ✅
-Protected /auth/me ✅
+Authentication/JWT ✅
 Team CRUD ✅
 Player CRUD ✅
 Automatic OverallScore ✅
 Automatic PlayerProgress ✅
-Progress-history endpoint ✅
+Player historical deactivation rule ✅ verified
 Lineup CRUD ✅
-LineupPlayer assignments ✅
-Shared GitHub monorepo ✅
-Frontend repository area ✅ prepared
-Player delete/deactivate real-history test ⏭️ next verification
-AI algorithms ⬜
-Frontend ↔ backend integration ⬜
-Deployment/production hardening ⬜
+Exactly 11-player Lineup rule ✅
+Formation required ✅
+Cosine Similarity Substitute Recommendation ✅
+38 automated tests ✅
+K-Means Position Analysis ⏭️ NEXT
+Genetic Algorithm Optimized Lineup ⬜
+Frontend integration ⬜
+Deployment ⬜
 ```
 
-## Big picture — current request flow
+## Current request flow
 
 ```text
-Swagger / future Frontend
-        ↓ HTTP request
+Frontend / Swagger
+      ↓
 FastAPI Router
-        ↓
-Pydantic Schema
-        ↓
-FastAPI Dependencies
-   ├── get_db()
-   └── get_current_coach()
-        ↓
-SQLAlchemy ORM
-        ↓
+      ↓
+Auth + ownership dependencies
+      ↓
+Service/business logic
+      ↓
+SQLAlchemy
+      ↓
 SQLite
-        ↓
-Response Schema
-        ↓ JSON
-Client
+      ↓
+Pydantic response
+      ↓
+JSON
 ```
 
-Authentication flow:
+The AI features add a service layer so algorithm logic is not mixed into HTTP routing.
+
+## Authentication flow
 
 ```text
 Login
-  → find Coach
-  → verify password
-  → create JWT
-  → return access token
+→ verify Coach password
+→ create JWT
+→ return access token
 
 Protected request
-  → Bearer token
-  → validate JWT
-  → get current Coach
-  → verify ownership
-  → run Team / Player / Lineup operation
+→ Bearer token
+→ decode JWT
+→ current Coach
+→ ownership check
+→ feature logic
 ```
 
-Lineup flow:
+## Substitute recommendation flow
 
 ```text
-Current Coach
-   ↓
-Owned Team
-   ↓
-Validate active team players
-   ↓
-Create Lineup
-   ↓
-Create LineupPlayer assignments
-   ↓
-Saved tactical history
+Unavailable player
+→ six-skill vector
+→ active same-team candidates
+→ candidate vectors
+→ Cosine Similarity
+→ descending ranking
+→ explainable reasons
+→ response
 ```
 
-## What is already worth demonstrating in a meeting?
+Endpoint:
 
-A strong Swagger demo is now:
+```text
+POST /teams/{team_id}/recommendations/substitute
+```
+
+The recommendation operation is read-only and does not change player or lineup records.
+
+## Strong Swagger demo now
 
 ```text
 POST /auth/login
-Authorize 🔒
-GET /auth/me
-GET /teams
-GET /teams/{team_id}/players
+Authorize
+GET  /auth/me
+GET  /teams
+GET  /teams/{team_id}/players
 PATCH /teams/{team_id}/players/{player_id}
-GET /teams/{team_id}/players/{player_id}/progress
+GET  /teams/{team_id}/players/{player_id}/progress
 POST /teams/{team_id}/lineups
-GET /teams/{team_id}/lineups
-PATCH /teams/{team_id}/lineups/{lineup_id}
+GET  /teams/{team_id}/lineups
+POST /teams/{team_id}/recommendations/substitute
 ```
 
-This demonstrates authentication, ownership, CRUD, calculated performance, historical progress, and saved tactical lineups.
+This demonstrates authentication, ownership, CRUD, performance history, tactical history, and the first implemented AI feature.
 
-## Current design choices to remember
+## Key design choices
 
 ### OverallScore
 
-The report says it is calculated but does not define a formula. Current implementation uses the average of the six skill ratings and rounds to two decimals.
-
-### Player history
-
-A skill update creates a `PlayerProgress` record containing old score, new score, status, and timestamp.
+Current implementation averages the six skill ratings and rounds to two decimals. The report describes a calculated score but does not define the exact formula.
 
 ### Player deletion
 
-If a player has saved-lineup history, the code preserves the player and deactivates them instead of permanently deleting them. The real-history branch is the next verification now that LineupPlayer records can be created.
+No saved LineupPlayer history → hard delete.
 
-### Lineup size
+Saved lineup history → preserve record and set `is_active = False`.
 
-Basic Lineup CRUD is verified. During API construction we temporarily allow fewer than 11 players so we can test the data model first. Formation/11-player tactical validation is still future work.
+This behavior has now been verified with real saved lineup history.
 
-## Important rule for these notes
+### Saved Lineup
 
-Pages marked as current implementation describe code we actually built. Planned work is labeled clearly so we do not study a roadmap item as if it were already finished.
+A final saved lineup currently requires exactly 11 players and a non-empty formation.
+
+### Substitute recommendation
+
+The selected unavailable player can be inactive. Substitute candidates must be active players from the same owned team. The algorithm uses all six skills, not `overall_score`, and does not silently impose a same-position restriction.
+
+## Current stopping point
+
+> **Next: define and implement K-Means Position Analysis carefully, especially the K value and the mapping between anonymous K-Means cluster IDs and football-role names.**
