@@ -8,9 +8,9 @@ title: Position Analysis
 This page documents Tactiki's second AI feature: **player role analysis using a fixed FIFA 23 K-Means reference model**.
 
 :::info Current integration status
-The revised FIFA-reference implementation is **implemented, tested, committed, and pushed** on `backend/position-analysis`.
+The revised FIFA-reference Position Analysis is **implemented, tested, merged, and active on `main`**.
 
-The earlier roster-relative K-Means version was merged in PR #4. The newer FIFA-reference revision was committed afterward, so it still requires a follow-up PR before it becomes part of `main`.
+PR #5 merged commit `a1503a5` into `main`. This supersedes the earlier roster-relative design from PR #4.
 :::
 
 ## Why the design changed
