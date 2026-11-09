@@ -41,6 +41,7 @@ const sidebars = {
       collapsed: false,
       items: [
         'substitute-recommendation',
+        'position-analysis',
       ],
     },
     {
