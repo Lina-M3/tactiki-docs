@@ -5,260 +5,151 @@ title: Roadmap & Next Steps
 
 # Roadmap & Next Steps
 
-This page separates what is **finished**, what is currently **next**, and what remains for final delivery.
-
-## Phase 1 — Backend foundation ✅
+## Completed foundation ✅
 
 ```text
-FastAPI ✅
-Uvicorn ✅
-SQLite ✅
-SQLAlchemy ✅
-Pydantic ✅
-Swagger/OpenAPI ✅
-Monorepo backend structure ✅
-```
-
-## Phase 2 — Authentication & authorization ✅
-
-```text
-Signup ✅
-Password hashing ✅
-Login ✅
-JWT creation/validation ✅
-Token expiration ✅
-GET /auth/me ✅
-Swagger Authorize ✅
-Coach/team ownership protection ✅
-```
-
-## Phase 3 — Team management ✅
-
-```text
-Create/List/Read/Update/Delete ✅
-Duplicate-name prevention ✅
-Coach ownership checks ✅
-```
-
-## Phase 4 — Player management & progress ✅
-
-```text
+FastAPI / SQLAlchemy / SQLite / Pydantic ✅
+JWT authentication ✅
+Team CRUD ✅
 Player CRUD ✅
-Duplicate-name prevention ✅
-Automatic OverallScore ✅
-Automatic PlayerProgress ✅
-Progress-history endpoint ✅
-Delete without history → permanent delete ✅
-Delete with Lineup history → deactivate ✅ verified
-Historical lineup data preserved ✅ verified
-```
-
-OverallScore currently uses:
-
-```text
-(speed + passing + shooting + defending + stamina + dribbling) / 6
-```
-
-## Phase 5 — Saved Lineups & rules ✅
-
-```text
-Lineup schemas ✅
-Create/List/Read/Update/Delete ✅
-LineupPlayer assignments ✅
-Assigned position per lineup ✅
-Owned-team validation ✅
-Same-team validation ✅
-Active-player validation ✅
-Duplicate player prevention ✅
-Exactly 11 players ✅
+PlayerProgress ✅
+Lineup CRUD ✅
+Exactly 11 saved players ✅
 Non-empty formation ✅
-11-player Swagger success test ✅
+Git feature-branch + PR workflow ✅
 ```
 
-Still future tactical detail, only when explicitly required by the final design:
+## AI Feature 1 — Substitute Recommendation ✅
+
+Algorithm:
 
 ```text
-[ ] Final formation catalogue
-[ ] Detailed position-count validation
-[ ] Goalkeeper-specific rule if finalized
-[ ] Decide archive/edit policy for historical lineups
+Cosine Similarity
 ```
 
-## Phase 6 — GitHub collaboration ✅ ongoing
-
-Main application repository:
+Status:
 
 ```text
-Lina-M3/tactiki
+implemented ✅
+tested ✅
+Swagger verified ✅
+merged to main ✅
 ```
 
-Completed workflow:
+The feature compares the unavailable player's six-skill vector with active same-team candidates and returns a deterministic ranked list.
+
+## AI Feature 2 — Position Analysis ✅ implemented / ⏭️ final merge
+
+Final technical design:
 
 ```text
-Private monorepo ✅
-backend/ + frontend/ structure ✅
-Root .gitignore ✅
-Feature branches ✅
-Pull Requests ✅
-Lineup CRUD PR merged ✅
-Lineup rules PR merged ✅
-Substitute recommendation PR merged ✅
-AGENTS.md repository rules ✅
+FIFA 23 outfield dataset
+→ offline K-Means K=3
+→ fixed reference centroids
+→ university outfield player
+→ nearest centroid
+→ Defender / Attacker / Midfielder
 ```
 
-## Phase 7 — Intelligence features 🧠
-
-### 7.1 Substitute recommendation — Cosine Similarity ✅
-
-Endpoint:
+Goalkeeper rule:
 
 ```text
-POST /teams/{team_id}/recommendations/substitute
+GK / Goalkeeper
+→ Goalkeeper directly
+→ cluster_id = null
+→ outside outfield K-Means
 ```
 
-Completed:
+Why the revision matters:
 
 ```text
-Canonical six-skill vectors ✅
-Active same-team candidates ✅
-Unavailable/inactive target supported ✅
-Cosine Similarity ✅
-Descending deterministic ranking ✅
-Explainable recommendation reasons ✅
-Incomplete-data handling ✅
-Read-only behavior ✅
-38 automated tests ✅
-Real Swagger verification ✅
-PR #3 merged into main ✅
+Old team-level fitting = roles depended on roster composition
+Fixed FIFA reference = same skill vector gets same role across teams
 ```
 
-See **Substitute Recommendation** for the implementation details.
-
-### 7.2 Position analysis — K-Means ⏭️ NEXT
-
-The Final Report requires K-Means to classify player skill profiles into suitable positional roles.
-
-Report-supported facts:
+Current validation:
 
 ```text
-Uses all six skill attributes
-Unsupervised K-Means clustering
-Small university rosters around 15–30 players
-Clusters correspond to football-role profiles
-Examples in the report: Attacker, Midfielder, Defender
+16,467 FIFA 23 training profiles
+102 backend tests passing
+38 existing Cosine tests still green
+raw FIFA CSV ignored by Git
+small JSON reference artifact tracked
 ```
 
-Before implementation we must explicitly define the parts the report leaves ambiguous:
+Git note:
 
 ```text
-K value
-How cluster IDs map to human-readable roles
-Whether only active players are analyzed
-Minimum number of complete players
-Whether analysis is read-only or persisted
-How Goalkeeper is handled
-Whether feature scaling is used
-API response contract
+PR #4 merged the earlier roster-relative version.
+Commit a1503a5 contains the improved FIFA-reference revision
+and is pushed on backend/position-analysis.
+Follow-up PR is still required.
 ```
 
-We should not invent these silently.
+## AI Feature 3 — Optimized Lineup ⏭️ NEXT AFTER MERGE
 
-### 7.3 Optimized lineup generation — Genetic Algorithm ⬜
-
-Final goal:
+Algorithm:
 
 ```text
-Available candidate players
-+ selected formation
-→ Genetic Algorithm
-→ optimized Starting XI
-→ Synergy Score
-→ recommendation reason
-→ save Lineup + LineupPlayer
+Genetic Algorithm
 ```
 
-Before coding we still need the final fitness/constraint definition.
-
-## Phase 8 — Frontend integration ⬜ / parallel
+Before implementation, explicitly finalize:
 
 ```text
-[ ] Confirm frontend framework
-[ ] Add frontend API base URL
-[ ] Configure FastAPI CORS
-[ ] Connect login/JWT
-[ ] Teams UI
-[ ] Players UI
+1. supported formations
+2. exactly-one-goalkeeper rule
+3. eligible/active player pool
+4. positional constraints
+5. chromosome representation
+6. fitness function
+7. exact Synergy Score formula
+8. penalty strategy for invalid lineups
+9. population size
+10. generations
+11. selection method
+12. crossover method
+13. mutation method
+14. deterministic/random-seed strategy
+15. save-vs-preview behavior
+```
+
+Do not code the GA until these rules are traceable to the report or explicitly documented as implementation decisions.
+
+## Frontend integration ⬜
+
+```text
+[ ] CORS
+[ ] API base URL
+[ ] Login + JWT
+[ ] Team screens
+[ ] Player screens
 [ ] Progress charts
-[ ] Saved Lineups UI
+[ ] Saved lineup screens
 [ ] Substitute Recommendation UI
 [ ] Position Analysis UI
 [ ] Optimized Lineup UI
 ```
 
-## Phase 9 — Validation & testing 🟡
-
-Already added:
+## Quality / deployment ⬜
 
 ```text
-pytest ✅
-httpx/TestClient ✅
-Isolated in-memory test database ✅
-Recommendation security/algorithm tests ✅
-Backend/OpenAPI smoke tests ✅
-38 tests passing ✅
-```
-
-Still needed:
-
-```text
-[ ] Broader tests for existing CRUD
-[ ] Pydantic ranges for skill values
-[ ] Positive height/weight validation
-[ ] Transaction rollback hardening
-[ ] K-Means tests
-[ ] Genetic Algorithm tests
-[ ] Frontend integration tests
-```
-
-## Phase 10 — Database & deployment ⬜
-
-```text
+[ ] Broader CRUD automated tests
+[ ] Stronger numeric validation
 [ ] Production database decision
-[ ] Migration strategy if required
-[ ] Backend deployment
-[ ] Frontend deployment
-[ ] Production environment variables
-[ ] Production CORS
-[ ] HTTPS/API URL
-[ ] End-to-end testing
-```
-
-## Phase 11 — Final project preparation ⬜
-
-```text
-[ ] Synchronize final report with implemented system
-[ ] Architecture/sequence/class diagram review
-[ ] Final demo scenario
-[ ] Defense questions
-[ ] Screenshots/results
-[ ] README setup instructions
-[ ] Final repository cleanup
-[ ] Final documentation review
+[ ] Deployment
+[ ] End-to-end tests
+[ ] Final report sync
+[ ] Demo + defense preparation
 ```
 
 ## Immediate next actions
 
 ```text
-1. Define K-Means requirements precisely from the final report
-2. Implement Position Analysis on a dedicated branch
-3. Test + Swagger verify + PR/merge K-Means
-4. Define Genetic Algorithm fitness and tactical constraints
-5. Implement optimized lineup generation
-6. Integrate frontend in parallel
-7. Broaden tests and deploy
-8. Final report/demo/defense preparation
+1. Open/merge follow-up PR for commit a1503a5
+2. Pull updated main locally
+3. Confirm backend/data/raw is ignored on main
+4. Review Genetic Algorithm requirements from the report
+5. Freeze Synergy Score + formation/GK rules
+6. Implement GA on a new branch
 ```
-
-:::warning
-A report algorithm name is not considered complete until its actual endpoint/service behavior is implemented, tested, and merged.
-:::
