@@ -37,7 +37,15 @@ const sidebars = {
     },
     {
       type: 'category',
-      label: '4. Quick Reference',
+      label: '4. AI Features',
+      collapsed: false,
+      items: [
+        'substitute-recommendation',
+      ],
+    },
+    {
+      type: 'category',
+      label: '5. Quick Reference',
       collapsed: false,
       items: [
         'commands-cheatsheet',
@@ -46,7 +54,7 @@ const sidebars = {
     },
     {
       type: 'category',
-      label: '5. Project Notebook',
+      label: '6. Project Notebook',
       collapsed: false,
       items: [
         'docs-site',
