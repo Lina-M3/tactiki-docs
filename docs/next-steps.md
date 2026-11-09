@@ -38,7 +38,7 @@ merged to main ✅
 
 The feature compares the unavailable player's six-skill vector with active same-team candidates and returns a deterministic ranked list.
 
-## AI Feature 2 — Position Analysis ✅ implemented / ⏭️ final merge
+## AI Feature 2 — Position Analysis ✅
 
 Final technical design:
 
@@ -77,16 +77,15 @@ raw FIFA CSV ignored by Git
 small JSON reference artifact tracked
 ```
 
-Git note:
+Git status:
 
 ```text
-PR #4 merged the earlier roster-relative version.
-Commit a1503a5 contains the improved FIFA-reference revision
-and is pushed on backend/position-analysis.
-Follow-up PR is still required.
+PR #4 — initial roster-relative version ✅ merged
+PR #5 — FIFA-reference revision ✅ merged
+main now contains the final reference-based design
 ```
 
-## AI Feature 3 — Optimized Lineup ⏭️ NEXT AFTER MERGE
+## AI Feature 3 — Optimized Lineup ⏭️ NEXT
 
 Algorithm:
 
@@ -146,10 +145,10 @@ Do not code the GA until these rules are traceable to the report or explicitly d
 ## Immediate next actions
 
 ```text
-1. Open/merge follow-up PR for commit a1503a5
-2. Pull updated main locally
-3. Confirm backend/data/raw is ignored on main
-4. Review Genetic Algorithm requirements from the report
-5. Freeze Synergy Score + formation/GK rules
-6. Implement GA on a new branch
+1. Review Genetic Algorithm requirements from the report
+2. Freeze Synergy Score + formation/GK rules
+3. Define chromosome + fitness + penalties
+4. Implement GA on a new feature branch
+5. Add automated tests and Swagger verification
+6. Merge through PR
 ```
