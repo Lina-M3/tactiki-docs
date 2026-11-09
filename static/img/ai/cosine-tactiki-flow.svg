@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="650" viewBox="0 0 1200 650">
+  <rect width="1200" height="650" fill="#f7f9fc"/>
+  <text x="55" y="55" fill="#182230" font-size="31" font-family="Arial" font-weight="700">Tactiki Substitute Recommendation Flow</text>
+  <g font-family="Arial" font-size="19" text-anchor="middle">
+    <rect x="55" y="125" width="190" height="90" rx="15" fill="#dceeff" stroke="#3578b8" stroke-width="2"/>
+    <text x="150" y="160" fill="#182230">Unavailable player</text><text x="150" y="190" fill="#182230">selected by coach</text>
+    <rect x="300" y="125" width="230" height="90" rx="15" fill="#e8f6e8" stroke="#3c8c4c" stroke-width="2"/>
+    <text x="415" y="158" fill="#182230">Build 6-skill vector</text><text x="415" y="188" fill="#182230">[S,P,Sh,D,St,Dr]</text>
+    <rect x="585" y="95" width="260" height="150" rx="15" fill="#fff2cf" stroke="#c78d16" stroke-width="2"/>
+    <text x="715" y="132" fill="#182230">Eligible candidates</text><text x="715" y="164" fill="#182230">same team</text><text x="715" y="194" fill="#182230">active only</text><text x="715" y="224" fill="#182230">exclude selected player</text>
+    <rect x="900" y="125" width="240" height="90" rx="15" fill="#f3e6ff" stroke="#8d55b8" stroke-width="2"/>
+    <text x="1020" y="158" fill="#182230">cosine_similarity()</text><text x="1020" y="188" fill="#182230">target vs each candidate</text>
+  </g>
+  <g stroke="#53657b" stroke-width="3" fill="none">
+    <line x1="245" y1="170" x2="300" y2="170"/><polygon points="300,170 287,162 287,178" fill="#53657b"/>
+    <line x1="530" y1="170" x2="585" y2="170"/><polygon points="585,170 572,162 572,178" fill="#53657b"/>
+    <line x1="845" y1="170" x2="900" y2="170"/><polygon points="900,170 887,162 887,178" fill="#53657b"/>
+  </g>
+  <rect x="160" y="330" width="880" height="225" rx="20" fill="#ffffff" stroke="#c5ced9" stroke-width="2"/>
+  <text x="200" y="375" fill="#182230" font-size="24" font-family="Arial" font-weight="700">Example ranking</text>
+  <text x="210" y="420" fill="#182230" font-size="21" font-family="Arial">Candidate A → 0.982314</text>
+  <text x="210" y="458" fill="#182230" font-size="21" font-family="Arial">Candidate B → 0.941208</text>
+  <text x="210" y="496" fill="#182230" font-size="21" font-family="Arial">Candidate C → 0.873554</text>
+  <text x="575" y="420" fill="#182230" font-size="20" font-family="Arial">Sort descending by similarity</text>
+  <text x="575" y="458" fill="#182230" font-size="20" font-family="Arial">Tie-break: player_id ascending</text>
+  <text x="575" y="496" fill="#182230" font-size="20" font-family="Arial">Reason: two smallest skill differences</text>
+  <text x="600" y="604" fill="#53657b" font-size="18" text-anchor="middle" font-family="Arial">The operation is read-only: it recommends substitutes but does not modify Player, Team, Progress, or Lineup data.</text>
+</svg>
