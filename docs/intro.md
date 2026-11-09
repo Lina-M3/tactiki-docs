@@ -20,17 +20,17 @@ Player CRUD ✅
 PlayerProgress ✅
 Lineup CRUD + 11-player rule ✅
 Cosine Similarity Substitute Recommendation ✅ merged
-K-Means Position Analysis ✅ implemented/tested on feature branch
+K-Means Position Analysis ✅ merged
 FIFA 23 fixed reference centroids ✅
 Goalkeeper separated from outfield K-Means ✅
-K-Means follow-up merge ⏭️ pending
+FIFA-reference K-Means revision ✅ merged
 Genetic Algorithm Optimized Lineup ⬜ next major AI stage
 Frontend integration ⬜
 Deployment ⬜
 ```
 
-:::warning Current Git checkpoint
-PR #4 merged the earlier roster-relative K-Means version. The improved FIFA-reference revision was committed and pushed afterward on `backend/position-analysis`, so a follow-up PR is still required before the revised design is in `main`.
+:::info Current Git checkpoint
+PR #5 merged the FIFA-reference Position Analysis revision into `main`. Local `main` is up to date and the working tree is clean.
 :::
 
 ## Repository map
@@ -108,4 +108,4 @@ POST /teams/{team_id}/analysis/positions
 
 ## Current stopping point
 
-> **Finish merging the revised FIFA-reference Position Analysis, then define the Genetic Algorithm fitness function, Synergy Score, formation constraints, and goalkeeper rule before implementation.**
+> **Cosine Similarity and the revised FIFA-reference K-Means Position Analysis are now merged. Next: define the Genetic Algorithm fitness function, Synergy Score, formation constraints, and goalkeeper rule before implementation.**
