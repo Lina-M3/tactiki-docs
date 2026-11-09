@@ -5,7 +5,7 @@ title: Substitute Recommendation
 
 # Substitute Recommendation — Cosine Similarity
 
-This page documents the first completed AI feature in Tactiki.
+This page documents Tactiki's first completed AI feature: **finding substitute players using Cosine Similarity**.
 
 ## Status
 
@@ -16,13 +16,119 @@ Swagger real-data verification ✅
 Pull Request #3 ✅ merged into main
 ```
 
-## Requirement
+## What problem does it solve?
 
-The feature follows the Final Report UC-10 **Find Substitute Player**.
+The coach selects an unavailable player.
 
-The coach selects an unavailable player. Tactiki compares that player's skill profile with eligible active teammates and returns a ranked list of substitute recommendations.
+Tactiki then asks:
 
-## Endpoint
+> Which active teammate has the most similar **shape of strengths and weaknesses** across the six recorded skills?
+
+The answer is produced with **Cosine Similarity**.
+
+## Canonical player vector
+
+Each player is converted to the same six-dimensional vector:
+
+```text
+[
+  speed,
+  passing,
+  shooting,
+  defending,
+  stamina,
+  dribbling
+]
+```
+
+Example:
+
+```text
+Player A
+Speed      90
+Passing    86
+Shooting   90
+Defending  80
+Stamina    91
+Dribbling  84
+
+Vector A =
+[90, 86, 90, 80, 91, 84]
+```
+
+`overall_score` is not used instead of the six-dimensional vector.
+
+## Visual intuition
+
+![Cosine Similarity vector angle](/tactiki-docs/img/ai/cosine-vector-angle.svg)
+
+Cosine Similarity is based on the **angle between two vectors**.
+
+Conceptually:
+
+```text
+similarity(A, B) = cos(angle between A and B)
+```
+
+The full mathematical form is:
+
+```text
+                  A · B
+similarity = ----------------
+             ||A|| × ||B||
+```
+
+Where:
+
+- `A · B` is the dot product.
+- `||A||` is the magnitude of player A's vector.
+- `||B||` is the magnitude of player B's vector.
+
+### Interpretation
+
+For the non-negative skill data used in Tactiki:
+
+```text
+score close to 1
+→ very similar skill-profile direction
+
+lower score
+→ less similar balance of strengths
+```
+
+## Why direction matters
+
+Consider a simplified two-skill example:
+
+```text
+Player A = [2, 1]
+Player B = [4, 2]
+```
+
+Player B has larger numbers, but both vectors have the same proportion:
+
+```text
+2 : 1
+4 : 2
+```
+
+Their directions are identical, so Cosine Similarity is:
+
+```text
+1.0
+```
+
+This demonstrates an important point:
+
+> A Cosine score of 1 does **not** necessarily mean the raw skill numbers are identical. It means the vectors point in the same direction and therefore have the same relative profile shape.
+
+That is useful for Tactiki because the goal is to find a substitute whose **balance of abilities** resembles the unavailable player.
+
+## Runtime flow
+
+![Tactiki Cosine Similarity recommendation flow](/tactiki-docs/img/ai/cosine-tactiki-flow.svg)
+
+Endpoint:
 
 ```http
 POST /teams/{team_id}/recommendations/substitute
@@ -36,71 +142,104 @@ Request:
 }
 ```
 
-The coach identity is taken from the JWT. The request does not accept a coach ID.
-
-## Security and eligibility
-
-Before generating recommendations, the API verifies:
+Flow:
 
 ```text
-Authenticated coach
-→ owns requested team
-→ selected player belongs to that team
-→ candidate belongs to same team
-→ candidate is active
-→ candidate is not the selected player
-→ candidate has complete finite skill data
+authenticated coach
+→ verify team ownership
+→ load unavailable player
+→ build target six-skill vector
+→ load active same-team candidates
+→ exclude selected player
+→ validate candidate vectors
+→ cosine_similarity(target, candidates)
+→ rank descending
+→ generate deterministic reasons
+→ return response
 ```
 
-The selected unavailable player may itself be inactive. This is intentional because the feature is specifically designed to replace an unavailable player.
+## Candidate eligibility
 
-## Canonical skill vector
-
-All AI features use the same six stored skill attributes:
+The selected unavailable player:
 
 ```text
-[
-  speed,
-  passing,
-  shooting,
-  defending,
-  stamina,
-  dribbling
-]
+may be active or inactive
 ```
 
-`overall_score` is not used as a replacement for this vector.
+Candidate substitutes must:
 
-## Cosine Similarity
+```text
+belong to the same team
+be active
+not be the selected player
+have complete finite skill values
+```
 
-Implementation:
+There is intentionally **no same-position filter** in the current implementation because the source requirement did not define one.
+
+## Actual implementation
+
+Tactiki uses:
 
 ```python
 from sklearn.metrics.pairwise import cosine_similarity
 ```
 
-The service compares the selected player's vector against every eligible candidate vector.
+The service calculates the similarity between the target vector and every eligible candidate vector.
 
-A score closer to `1` means the shape of the skill profiles is more similar.
-
-API scores are rounded to six decimal places.
-
-## Ranking
-
-Recommendations are sorted by:
+Then results are sorted by:
 
 ```text
 1. similarity_score descending
-2. player_id ascending for deterministic ties
+2. player_id ascending when rounded scores tie
 ```
 
-This makes identical inputs produce stable output.
+Scores are rounded to six decimal places for the API.
+
+## Why some test scores were almost 1
+
+During development we created synthetic Test Players whose skills increased together in a very similar pattern.
+
+For example, conceptually:
+
+```text
+Player 1 = [71, 73, 69, 66, 76, 72]
+Player 2 = [72, 74, 70, 67, 77, 73]
+Player 3 = [73, 75, 71, 68, 78, 74]
+```
+
+Their raw values differ, but the **shape** of each profile is almost the same.
+
+So scores such as:
+
+```text
+1.000000
+0.999999
+0.999998
+```
+
+are expected.
+
+This is not evidence that every real football player will have a near-perfect similarity score. Real, more diverse profiles should produce clearer differences.
 
 ## Recommendation reason
 
-The reason is deterministic and based only on player data.
+Cosine Similarity gives the ranking score, but a number alone is difficult for a coach to explain.
 
-For every candidate, the service finds the two skills with the smallest absolute differences from the selected player.
+Tactiki adds a deterministic explanation.
+
+For a target and one candidate, the service calculates the absolute difference for each skill:
+
+```text
+|target speed - candidate speed|
+|target passing - candidate passing|
+|target shooting - candidate shooting|
+|target defending - candidate defending|
+|target stamina - candidate stamina|
+|target dribbling - candidate dribbling|
+```
+
+The two smallest differences are used in the reason.
 
 Example:
 
@@ -108,9 +247,11 @@ Example:
 Closest skill matches are in passing and stamina.
 ```
 
-No generative AI model is used to write the reason.
+This explanation is generated from data only.
 
-## Response shape
+No generative AI model writes the reason.
+
+## Example response
 
 ```json
 {
@@ -130,35 +271,29 @@ No generative AI model is used to write the reason.
 }
 ```
 
-If there are no eligible substitutes, the API returns a successful response with an empty `recommendations` list and a clear message.
-
-## Code structure
+If no eligible candidate exists:
 
 ```text
-backend/app/
-├── routers/
-│   └── recommendation.py
-├── schemas/
-│   └── recommendation.py
-└── services/
-    ├── __init__.py
-    └── recommendations.py
-
-backend/tests/
-├── conftest.py
-└── test_recommendations.py
+HTTP success
+recommendations = []
+clear no-substitute message
 ```
 
-Responsibilities:
+## Cosine Similarity vs K-Means
 
-- Router: authentication, ownership, database retrieval, HTTP errors.
-- Schema: request/response contract.
-- Service: vector validation, cosine similarity, ranking, reasons.
-- Tests: isolated API and algorithm verification.
+They solve different problems.
+
+| Question | Cosine Similarity | K-Means Position Analysis |
+|---|---|---|
+| Main question | Who resembles this unavailable player? | Which reference role profile is this outfield player closest to? |
+| Input | One target + active candidates | One player + fixed FIFA centroids |
+| Output | Ranked substitute list | Recommended role |
+| Runtime reference | Other team players | FIFA 23 centroids |
+| Main distance idea | Vector angle | Euclidean distance to centroid |
 
 ## Read-only behavior
 
-Generating substitute recommendations does **not** modify:
+Generating recommendations does not modify:
 
 ```text
 Coach
@@ -169,26 +304,49 @@ Lineup
 LineupPlayer
 ```
 
-An automated test records SQL statements during the recommendation request and verifies that only `SELECT` statements are issued.
+Automated testing records SQL statements during the request and confirms that only `SELECT` operations occur.
+
+## Code structure
+
+```text
+backend/app/
+├── routers/
+│   └── recommendation.py
+├── schemas/
+│   └── recommendation.py
+└── services/
+    └── recommendations.py
+
+backend/tests/
+├── conftest.py
+└── test_recommendations.py
+```
+
+Responsibilities:
+
+- Router → authentication, ownership, data retrieval, HTTP errors.
+- Schema → request/response contract.
+- Service → vector validation, similarity, ranking, reasons.
+- Tests → security, algorithm correctness, determinism, read-only behavior.
 
 ## Automated verification
 
-The test suite covers:
+Coverage includes:
 
 ```text
 Authentication ✅
 Invalid token ✅
 Team ownership ✅
-Cross-team player protection ✅
+Cross-team protection ✅
 Inactive target allowed ✅
 Inactive candidates excluded ✅
 Selected player excluded ✅
-Canonical vector ✅
-Known cosine values ✅
+Canonical vector order ✅
+Known cosine calculation ✅
 Descending ranking ✅
 Stable rounded ties ✅
-Incomplete candidate exclusion ✅
-Incomplete target validation ✅
+Invalid candidate exclusion ✅
+Invalid target validation ✅
 Zero-vector behavior ✅
 Empty candidate result ✅
 Response schema ✅
@@ -196,29 +354,28 @@ No database mutation ✅
 Backend/OpenAPI smoke test ✅
 ```
 
-Final result:
+Final feature-specific baseline:
 
 ```text
-38 passed
+38 tests passed
 ```
 
-Tests use an isolated in-memory database and never touch the developer's real `tactiki.db`.
+These tests continue to pass as later AI features are added.
 
-## Important implementation decisions
+## Defense explanation
 
-These were implementation decisions where the report did not specify an exact API-level rule:
+Short version:
 
-- Return all eligible candidates; the frontend can later choose how many to display.
-- Do not require the candidate to have the same stored position.
-- Round similarity to six decimals.
-- Break rounded similarity ties by `player_id`.
-- Generate reasons from the two closest skill values.
-- Reject incomplete/non-finite selected-player skills.
-- Exclude incomplete/non-finite candidates.
-- Follow scikit-learn behavior for zero vectors.
+> We represent the unavailable player and eligible teammates as six-dimensional skill vectors. Cosine Similarity compares the direction of those vectors, so it measures how similar the balance of skills is. We rank active teammates by that score and add a deterministic explanation using the two closest skill values.
 
-## Defense summary
+### Important defense distinction
 
-A concise explanation:
+Do not say:
 
-> Tactiki converts the unavailable player and active teammates into six-dimensional skill vectors. It uses Cosine Similarity to measure profile similarity, sorts candidates from most similar to least similar, and gives an explainable reason based on the closest skill attributes. The operation is protected by JWT ownership checks and is read-only.
+> Cosine checks which player has the same total score.
+
+Instead say:
+
+> Cosine checks similarity in the shape or direction of the six-skill profile.
+
+That distinction is the reason this method is useful for substitute matching.
