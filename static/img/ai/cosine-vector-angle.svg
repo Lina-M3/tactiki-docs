@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="560" viewBox="0 0 1000 560">
+  <rect width="1000" height="560" fill="#0b1220"/>
+  <text x="50" y="55" fill="#ffffff" font-size="30" font-family="Arial" font-weight="700">Cosine Similarity — compare direction, not raw size</text>
+  <line x1="140" y1="455" x2="880" y2="455" stroke="#7f8ea3" stroke-width="2"/>
+  <line x1="140" y1="455" x2="140" y2="95" stroke="#7f8ea3" stroke-width="2"/>
+  <line x1="140" y1="455" x2="640" y2="180" stroke="#61dafb" stroke-width="8" stroke-linecap="round"/>
+  <polygon points="640,180 615,188 625,210" fill="#61dafb"/>
+  <line x1="140" y1="455" x2="785" y2="245" stroke="#9be564" stroke-width="8" stroke-linecap="round"/>
+  <polygon points="785,245 759,244 767,268" fill="#9be564"/>
+  <path d="M260 455 A120 120 0 0 0 250 400" fill="none" stroke="#ffd166" stroke-width="5"/>
+  <text x="264" y="413" fill="#ffd166" font-size="24" font-family="Arial">θ</text>
+  <text x="650" y="165" fill="#61dafb" font-size="22" font-family="Arial" font-weight="700">Unavailable player vector A</text>
+  <text x="655" y="290" fill="#9be564" font-size="22" font-family="Arial" font-weight="700">Candidate vector B</text>
+  <rect x="510" y="355" width="410" height="135" rx="16" fill="#131d2f" stroke="#30415b"/>
+  <text x="535" y="392" fill="#ffffff" font-size="21" font-family="Arial">cosine similarity = cos(θ)</text>
+  <text x="535" y="427" fill="#ffffff" font-size="19" font-family="Arial">θ small → score close to 1 → similar profile shape</text>
+  <text x="535" y="461" fill="#b8c4d6" font-size="18" font-family="Arial">Different vector lengths can still have the same direction.</text>
+  <text x="70" y="525" fill="#b8c4d6" font-size="17" font-family="Arial">In Tactiki each vector has 6 dimensions: speed, passing, shooting, defending, stamina, dribbling.</text>
+</svg>
