@@ -20,7 +20,7 @@ Use this page when we need to remember **exactly where development stopped**.
 | Lineup CRUD | ✅ | Complete |
 | Exactly 11 players | ✅ | Final saved-lineup rule |
 | Substitute Recommendation | ✅ merged | Cosine Similarity |
-| Position Analysis | ✅ branch / ⏭️ merge | FIFA-reference K-Means revision |
+| Position Analysis | ✅ merged | FIFA-reference K-Means revision |
 | Genetic Algorithm | ⬜ | Next major AI feature |
 | Frontend integration | ⬜ | Parallel/future |
 
@@ -117,11 +117,11 @@ a1503a5
 feat(backend): add FIFA reference position analysis
 ```
 
-It has been pushed to `backend/position-analysis` and still requires a follow-up PR into `main`.
+It was merged into `main` through **PR #5**.
 
 ## Current stopping point
 
-> **The revised K-Means design is implemented and tested. Next Git action: merge the FIFA-reference follow-up revision. Next engineering stage after that: define Genetic Algorithm constraints before coding.**
+> **The revised FIFA-reference K-Means design is merged and verified. The next engineering stage is to define Genetic Algorithm constraints before coding.**
 
 ## Checklist
 
@@ -138,7 +138,7 @@ It has been pushed to `backend/position-analysis` and still requires a follow-up
 [x] Train fixed FIFA 23 reference centroids
 [x] Separate Goalkeeper from outfield clustering
 [x] 102-test revised verification
-[ ] Follow-up PR: FIFA-reference revision → main
+[x] Follow-up PR #5: FIFA-reference revision → main
 [ ] Define GA fitness / Synergy Score
 [ ] Define formation + goalkeeper constraints
 [ ] Implement Genetic Algorithm
