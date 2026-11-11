@@ -18,110 +18,158 @@ Use this page when we need to remember **exactly where development stopped**.
 | PlayerProgress | ✅ | Historical tracking |
 | Player delete history | ✅ | Deactivate when lineup history exists |
 | Lineup CRUD | ✅ | Complete |
-| Exactly 11 players | ✅ | Final saved-lineup rule |
+| Exactly 11 players | ✅ | Saved final-lineup rule |
 | Substitute Recommendation | ✅ merged | Cosine Similarity |
-| Position Analysis | ✅ merged | FIFA-reference K-Means revision |
-| Genetic Algorithm | ⬜ | Next major AI feature |
-| Frontend integration | ⬜ | Parallel/future |
+| Position Analysis | ✅ merged | FIFA-reference K-Means |
+| Optimized Lineup | ✅ merged | Genetic Algorithm |
+| Frontend integration | ⏭️ Next | Connect stable backend APIs |
+| End-to-end testing | ⬜ | After integration |
+| Deployment | ⬜ | Final stage |
 
 ## AI Feature 1 — Cosine Similarity
-
-Endpoint:
 
 ```text
 POST /teams/{team_id}/recommendations/substitute
 ```
 
-Current verified behavior:
+Verified:
 
 ```text
-same-team active candidates
-inactive/unavailable target allowed
-canonical six-skill vector
+six-skill vectors
+active same-team candidates
+inactive target allowed
 cosine_similarity()
-descending deterministic ranking
-data-derived reason
-read-only database behavior
+deterministic ranking
+data-derived reasons
+read-only behavior
 ```
 
-The original feature baseline contains **38 passing tests**, and those tests remain green during later AI work.
-
-## AI Feature 2 — Position Analysis
-
-Endpoint:
+## AI Feature 2 — FIFA-reference K-Means
 
 ```text
 POST /teams/{team_id}/analysis/positions
 ```
 
-The original roster-relative implementation was merged in PR #4.
-
-After review, the design was strengthened before final adoption:
-
-```text
-OLD
-team roster
-→ fit K-Means again
-→ team-relative centroids
-
-REVISED
-FIFA 23 reference data
-→ train K-Means once
-→ fixed centroids
-→ classify university outfield players
-```
-
-### Revised training result
+Final design:
 
 ```text
 16,467 valid FIFA 23 outfield profiles
 K = 3
-random_state = 42
-n_init = 10
-```
+fixed reference centroids
 
-Learned roles:
-
-```text
 Cluster 0 → Defender
 Cluster 1 → Attacker
 Cluster 2 → Midfielder
+
+GK → Goalkeeper directly
 ```
 
-Goalkeepers:
+Runtime is roster-independent and read-only.
+
+PR #5 merged the final FIFA-reference revision.
+
+## AI Feature 3 — Genetic Algorithm
 
 ```text
-GK / Goalkeeper
-→ cluster_id = null
-→ recommended_role = Goalkeeper
-→ not compared with outfield centroids
+POST /teams/{team_id}/lineups/generate
 ```
 
-### Revised verification
+Final design:
 
 ```text
-102 backend tests ✅
-38 Cosine tests still pass ✅
-reverse-order suite ✅
-startup/OpenAPI checks ✅
-synthetic training tests ✅
-real FIFA reference artifact ✅
-SELECT-only runtime analysis ✅
+selected active players
++ dynamic formation
+→ valid 11-player chromosomes
+→ Genetic Algorithm
+→ maximize Synergy Score
+→ save best lineup atomically
+```
+
+### Dynamic formations
+
+No fixed backend whitelist.
+
+```text
+3–5 tactical bands
+positive integers
+sum = 10 outfield players
+GK implicit
+```
+
+Verified with:
+
+```text
+4-3-3 ✅
+4-2-3-1 ✅
+4-4-3 rejected ✅
+```
+
+### Synergy Score
+
+```text
+50% Positional Fit
+30% Overall Quality
+20% Team Balance
+```
+
+### GA configuration
+
+```text
+DEAP
+population = 100
+generations = 100
+seed = 42
+tournament selection
+uniform crossover
+slot-aware mutation
+best-2 elitism
+constraint repair
+```
+
+### Real Swagger results
+
+```text
+4-3-3
+Synergy Score = 81.38
+
+4-2-3-1
+12 selected → 11 optimized starters
+Synergy Score = 82.82
+```
+
+### Final verification
+
+```text
+86 GA feature tests ✅
+7 Lineup PATCH regression tests ✅
+195 full backend tests ✅
+195 reversed-order tests ✅
+startup/OpenAPI smoke checks ✅
+Cosine regressions ✅
+K-Means regressions ✅
 git diff --check ✅
+30-player benchmark = 1.271s ✅
 ```
 
-Current branch revision commit:
+PR #6 merged the Genetic Algorithm feature into `main`.
+
+## Related Lineup PATCH fix
+
+Regression testing caught an older bug in optional formation updates.
+
+Final behavior:
 
 ```text
-a1503a5
-feat(backend): add FIFA reference position analysis
+players-only PATCH ✅
+formation-only PATCH ✅
+both fields PATCH ✅
+omitted formation preserves existing value ✅
+blank formation rejected ✅
 ```
-
-It was merged into `main` through **PR #5**.
 
 ## Current stopping point
 
-> **The revised FIFA-reference K-Means design is merged and verified. The next engineering stage is to define Genetic Algorithm constraints before coding.**
+> **All three backend AI algorithms are implemented, tested, Swagger-verified, and merged. Next engineering work is frontend/backend integration.**
 
 ## Checklist
 
@@ -129,20 +177,23 @@ It was merged into `main` through **PR #5**.
 [x] Authentication + JWT
 [x] Team CRUD
 [x] Player CRUD
-[x] Progress history
+[x] Progress tracking
 [x] Lineup CRUD
-[x] 11-player rule
 [x] Cosine Similarity
-[x] K-Means initial implementation
-[x] Identify roster-relative limitation
-[x] Train fixed FIFA 23 reference centroids
-[x] Separate Goalkeeper from outfield clustering
-[x] 102-test revised verification
-[x] Follow-up PR #5: FIFA-reference revision → main
-[ ] Define GA fitness / Synergy Score
-[ ] Define formation + goalkeeper constraints
-[ ] Implement Genetic Algorithm
-[ ] Frontend integration
+[x] FIFA-reference K-Means
+[x] Goalkeeper handling
+[x] Genetic Algorithm
+[x] Dynamic formations
+[x] Synergy Score
+[x] Atomic generated-lineup persistence
+[x] PR #6 → main
+[x] 195-test backend regression suite
+
+[ ] Frontend ↔ Backend integration
+[ ] Integration testing
+[ ] End-to-end user-flow testing
 [ ] Deployment
-[ ] Final report/demo/defense sync
+[ ] Final report sync
+[ ] Final demo
+[ ] Defense preparation
 ```
