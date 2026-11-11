@@ -19,18 +19,28 @@ Team CRUD ✅
 Player CRUD ✅
 PlayerProgress ✅
 Lineup CRUD + 11-player rule ✅
-Cosine Similarity Substitute Recommendation ✅ merged
-K-Means Position Analysis ✅ merged
-FIFA 23 fixed reference centroids ✅
-Goalkeeper separated from outfield K-Means ✅
-FIFA-reference K-Means revision ✅ merged
-Genetic Algorithm Optimized Lineup ⬜ next major AI stage
-Frontend integration ⬜
+
+AI Feature 1 — Cosine Similarity ✅ merged
+AI Feature 2 — FIFA-reference K-Means ✅ merged
+AI Feature 3 — Genetic Algorithm ✅ merged
+
+Dynamic formations ✅
+Exactly-one-goalkeeper GA rule ✅
+Synergy Score ✅
+Atomic generated-lineup saving ✅
+195 backend tests ✅
+30-player GA benchmark: 1.271s ✅
+
+Frontend ↔ Backend integration ⏭️ NEXT
+Integration / End-to-End testing ⬜
 Deployment ⬜
+Final report/demo/defense sync ⬜
 ```
 
 :::info Current Git checkpoint
-PR #5 merged the FIFA-reference Position Analysis revision into `main`. Local `main` is up to date and the working tree is clean.
+PR #6 merged the Genetic Algorithm optimized-lineup feature into `main`.
+
+The three planned AI algorithms are now implemented in the backend.
 :::
 
 ## Repository map
@@ -55,25 +65,25 @@ Lina-M3/tactiki-docs
 | Local DB | SQLite |
 | Validation | Pydantic |
 | Authentication | JWT + HTTPBearer |
-| AI/ML | scikit-learn + NumPy + SciPy |
+| AI/ML | scikit-learn + NumPy + SciPy + DEAP |
 | Tests | pytest + httpx |
 | API testing | Swagger UI |
 | Source control | Git + GitHub |
 
 ## AI architecture at a glance
 
-### Substitute recommendation
+### 1. Substitute recommendation
 
 ```text
 Unavailable player
-→ 6-skill vector
+→ six-skill vector
 → active same-team candidates
 → Cosine Similarity
 → ranked substitutes
 → deterministic reasons
 ```
 
-### Position analysis
+### 2. Position analysis
 
 ```text
 FIFA 23 outfield data
@@ -88,24 +98,42 @@ GK / Goalkeeper
 → outside outfield K-Means
 ```
 
-See the detailed **Substitute Recommendation** and **Position Analysis** pages for diagrams and defense-ready explanations.
+### 3. Optimized lineup
 
-## Strong Swagger demo
+```text
+selected active players
++ dynamic formation
+→ 11-gene chromosome
+→ Genetic Algorithm
+→ maximize Synergy Score
+→ best Starting XI + assignments
+→ atomic Lineup save
+```
+
+See the detailed AI pages for diagrams and defense-ready explanations.
+
+## Strong Swagger demo now
 
 ```text
 POST /auth/login
 Authorize
+
 GET  /auth/me
 GET  /teams
 GET  /teams/{team_id}/players
 PATCH /teams/{team_id}/players/{player_id}
 GET  /teams/{team_id}/players/{player_id}/progress
-POST /teams/{team_id}/lineups
-GET  /teams/{team_id}/lineups
+
 POST /teams/{team_id}/recommendations/substitute
 POST /teams/{team_id}/analysis/positions
+POST /teams/{team_id}/lineups/generate
+
+GET  /teams/{team_id}/lineups
+GET  /teams/{team_id}/lineups/{lineup_id}
 ```
+
+This can demonstrate authentication, ownership, player management, progress tracking, all three AI algorithms, and saved tactical history.
 
 ## Current stopping point
 
-> **Cosine Similarity and the revised FIFA-reference K-Means Position Analysis are now merged. Next: define the Genetic Algorithm fitness function, Synergy Score, formation constraints, and goalkeeper rule before implementation.**
+> **The backend AI scope is complete. Next: connect the frontend to the stable backend APIs, then run integration and end-to-end testing before deployment and final defense preparation.**
