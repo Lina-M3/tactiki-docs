@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1250" height="720" viewBox="0 0 1250 720">
+<rect width="1250" height="720" fill="#0c1422"/>
+<text x="50" y="55" fill="#fff" font-size="31" font-family="Arial" font-weight="700">Synergy Score — Explainable Fitness Function</text>
+<text x="50" y="95" fill="#a9bbcf" font-size="19" font-family="Arial">Tactiki implementation decision: all components are normalized on a 0–100 scale.</text>
+
+<g font-family="Arial" text-anchor="middle">
+<rect x="75" y="155" width="300" height="165" rx="20" fill="#173a2b" stroke="#57c27b" stroke-width="3"/>
+<text x="225" y="198" fill="#fff" font-size="25" font-weight="700">50%</text>
+<text x="225" y="235" fill="#fff" font-size="22">Positional Fit</text>
+<text x="225" y="270" fill="#d2f2dc" font-size="16">DEF: defending + stamina + speed</text>
+<text x="225" y="296" fill="#d2f2dc" font-size="16">MID / ATT use their own role formulas</text>
+
+<rect x="475" y="155" width="300" height="165" rx="20" fill="#3e3218" stroke="#e5b84d" stroke-width="3"/>
+<text x="625" y="198" fill="#fff" font-size="25" font-weight="700">30%</text>
+<text x="625" y="235" fill="#fff" font-size="22">Overall Quality</text>
+<text x="625" y="270" fill="#f6e7b8" font-size="16">Average of all six skills</text>
+<text x="625" y="296" fill="#f6e7b8" font-size="16">across all 11 starters</text>
+
+<rect x="875" y="155" width="300" height="165" rx="20" fill="#31274c" stroke="#ae8cff" stroke-width="3"/>
+<text x="1025" y="198" fill="#fff" font-size="25" font-weight="700">20%</text>
+<text x="1025" y="235" fill="#fff" font-size="22">Team Balance</text>
+<text x="1025" y="270" fill="#e3d8ff" font-size="16">100 − (strongest unit − weakest unit)</text>
+<text x="1025" y="296" fill="#e3d8ff" font-size="16">DEF vs MID vs ATT</text>
+</g>
+
+<line x1="225" y1="320" x2="225" y2="405" stroke="#778ba5" stroke-width="3"/>
+<line x1="625" y1="320" x2="625" y2="405" stroke="#778ba5" stroke-width="3"/>
+<line x1="1025" y1="320" x2="1025" y2="405" stroke="#778ba5" stroke-width="3"/>
+<line x1="225" y1="405" x2="1025" y2="405" stroke="#778ba5" stroke-width="3"/>
+<line x1="625" y1="405" x2="625" y2="455" stroke="#778ba5" stroke-width="3"/><polygon points="625,455 617,441 633,441" fill="#778ba5"/>
+
+<rect x="340" y="455" width="570" height="120" rx="20" fill="#142238" stroke="#69b8ff" stroke-width="3"/>
+<text x="625" y="498" fill="#fff" font-size="24" text-anchor="middle" font-family="Arial">Synergy Score</text>
+<text x="625" y="535" fill="#bfe0ff" font-size="22" text-anchor="middle" font-family="Arial">0.50 × PositionalFit + 0.30 × OverallQuality + 0.20 × Balance</text>
+
+<rect x="275" y="620" width="700" height="55" rx="14" fill="#17253e"/>
+<text x="625" y="655" fill="#fff" font-size="18" text-anchor="middle" font-family="Arial">Goalkeeper is excluded from positional fit, but included in overall quality.</text>
+</svg>
