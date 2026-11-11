@@ -42,6 +42,7 @@ const sidebars = {
       items: [
         'substitute-recommendation',
         'position-analysis',
+        'genetic-algorithm',
       ],
     },
     {
